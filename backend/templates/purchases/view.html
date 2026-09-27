@@ -1,0 +1,248 @@
+{% extends "base.html" %}
+
+{% block title %}Purchase Invoice #{{ purchase.invoice_number }} – VL Silks{% endblock %}
+{% block header_title %}Purchase Bill & Inward Receipt{% endblock %}
+
+{% block extra_css %}
+<style>
+@media print {
+    .vl-sidebar, .breadcrumb, .no-print, header, .btn, .alert {
+        display: none !important;
+    }
+    .vl-content {
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+    .vl-card {
+        box-shadow: none !important;
+        border: 1px solid #ccc !important;
+    }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-12">
+        <!-- Breadcrumb and Actions Header -->
+        <div class="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-2 mb-3 no-print">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-0">
+                    <li class="breadcrumb-item"><a href="{{ url_for('purchases.index') }}" class="text-decoration-none text-danger">Purchases</a></li>
+                    <li class="breadcrumb-item active">{{ purchase.invoice_number }}</li>
+                </ol>
+            </nav>
+            <div class="d-flex gap-2">
+                <button onclick="window.print()" class="btn btn-outline-dark btn-sm">
+                    <i class="bi bi-printer me-1"></i> Print Bill
+                </button>
+                <a href="{{ url_for('purchases.index') }}" class="btn btn-outline-secondary btn-sm">
+                    <i class="bi bi-arrow-left me-1"></i> Back to Purchases
+                </a>
+                {% if session.get('user_role') == 'ADMIN' %}
+                <a href="{{ url_for('purchases.new') }}" class="vl-btn-maroon btn-sm">
+                    <i class="bi bi-plus-lg me-1"></i> New Purchase
+                </a>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Bill / Invoice Document Card -->
+        <div class="vl-card mb-4" id="printableBill">
+            <!-- Shop Branding & Invoice Header -->
+            <div class="d-flex flex-column flex-md-row justify-content-between align-items-start border-bottom pb-4 mb-4">
+                <div>
+                    <div class="d-flex align-items-center gap-2 mb-1">
+                        <h2 class="brand-font text-danger mb-0 fs-3">VL SILKS</h2>
+                        <span class="badge bg-warning-subtle text-dark border">PURCHASE INWARD VOUCHER</span>
+                    </div>
+                    <p class="text-muted small mb-1">Traditional Handlooms, Kanchipuram Silk Sarees & Ethnic Garments</p>
+                    <p class="text-muted small mb-0"><i class="bi bi-geo-alt me-1"></i>Main Bazaar, Commercial Street, Bengaluru, Karnataka</p>
+                </div>
+                <div class="text-md-end mt-3 mt-md-0">
+                    <h3 class="h5 brand-font text-dark mb-1">INVOICE: {{ purchase.invoice_number }}</h3>
+                    <div class="text-muted small mb-1">
+                        <strong>Date:</strong> {{ purchase.purchase_date.strftime('%d %B %Y') if purchase.purchase_date else '—' }}
+                    </div>
+                    <div class="text-muted small mb-2">
+                        <strong>Recorded By:</strong> {{ purchase.created_by_name }}
+                    </div>
+                    <div>
+                        {% if purchase.payment_status == 'PAID' %}
+                            <span class="badge bg-success-subtle text-success border border-success-subtle px-3 py-2 fs-6">
+                                <i class="bi bi-check-circle-fill me-1"></i> PAYMENT: PAID
+                            </span>
+                        {% elif purchase.payment_status == 'PARTIAL' %}
+                            <span class="badge bg-warning-subtle text-warning border border-warning-subtle px-3 py-2 fs-6">
+                                <i class="bi bi-hourglass-split me-1"></i> PAYMENT: PARTIAL
+                            </span>
+                        {% else %}
+                            <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-3 py-2 fs-6">
+                                <i class="bi bi-clock-history me-1"></i> PAYMENT: PENDING
+                            </span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Supplier & Consignment Info -->
+            <div class="row g-4 mb-4">
+                <div class="col-md-6">
+                    <div class="p-3 bg-light rounded border h-100">
+                        <span class="text-muted small text-uppercase fw-semibold d-block mb-1">Supplier Details</span>
+                        <h5 class="fw-bold mb-1">
+                            <a href="{{ url_for('suppliers.view', supplier_id=purchase.supplier_id) }}" class="text-danger text-decoration-none">
+                                {{ purchase.supplier_name }}
+                            </a>
+                        </h5>
+                        {% if purchase.contact_person %}
+                        <div class="text-muted small"><i class="bi bi-person me-1"></i>Contact: {{ purchase.contact_person }}</div>
+                        {% endif %}
+                        {% if purchase.supplier_phone %}
+                        <div class="text-muted small"><i class="bi bi-telephone me-1"></i>Phone: {{ purchase.supplier_phone }}</div>
+                        {% endif %}
+                        {% if purchase.supplier_email %}
+                        <div class="text-muted small"><i class="bi bi-envelope me-1"></i>Email: {{ purchase.supplier_email }}</div>
+                        {% endif %}
+                        {% if purchase.supplier_gst %}
+                        <div class="text-muted small"><i class="bi bi-receipt me-1"></i>GSTIN: <span class="badge bg-secondary-subtle text-dark">{{ purchase.supplier_gst }}</span></div>
+                        {% endif %}
+                        {% if purchase.supplier_address %}
+                        <div class="text-muted small mt-1"><i class="bi bi-building me-1"></i>{{ purchase.supplier_address }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="p-3 bg-light rounded border h-100">
+                        <span class="text-muted small text-uppercase fw-semibold d-block mb-1">Consignment Summary</span>
+                        <ul class="list-unstyled mb-0 small">
+                            <li class="d-flex justify-content-between py-1 border-bottom">
+                                <span class="text-muted">Distinct Garment Variants:</span>
+                                <strong>{{ purchase.item_count }} types</strong>
+                            </li>
+                            <li class="d-flex justify-content-between py-1 border-bottom">
+                                <span class="text-muted">Total Stock Units Inward:</span>
+                                <strong class="text-success">+{{ purchase.total_quantity }} pieces</strong>
+                            </li>
+                            <li class="d-flex justify-content-between py-1 border-bottom">
+                                <span class="text-muted">System Record Date:</span>
+                                <span>{{ purchase.created_at.strftime('%d %b %Y, %I:%M %p') if purchase.created_at else '—' }}</span>
+                            </li>
+                            {% if purchase.notes %}
+                            <li class="pt-2">
+                                <span class="text-muted d-block">Notes:</span>
+                                <span class="fst-italic text-dark">{{ purchase.notes }}</span>
+                            </li>
+                            {% endif %}
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Purchased Items Table -->
+            <div class="table-responsive mb-4">
+                <table class="vl-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 50px;">#</th>
+                            <th>Garment Product</th>
+                            <th>SKU / Code</th>
+                            <th>Color & Size</th>
+                            <th class="text-center">Inward Quantity</th>
+                            <th class="text-end">Unit Cost</th>
+                            <th class="text-end">Line Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in items %}
+                        <tr>
+                            <td class="text-muted">{{ loop.index }}</td>
+                            <td>
+                                <a href="{{ url_for('products.view', product_id=item.product_id) }}" class="fw-semibold text-dark text-decoration-none">
+                                    {{ item.product_name }}
+                                </a>
+                                <div class="text-muted small">{{ item.category_name }}{% if item.material %} &bull; {{ item.material }}{% endif %}</div>
+                            </td>
+                            <td>
+                                <span class="badge bg-light text-dark border font-monospace">{{ item.sku }}</span>
+                            </td>
+                            <td>
+                                <span class="badge bg-secondary-subtle text-dark me-1">{{ item.color }}</span>
+                                <span class="badge bg-light text-secondary border">{{ item.size }}</span>
+                            </td>
+                            <td class="text-center fw-bold text-success">
+                                +{{ item.quantity }} pcs
+                            </td>
+                            <td class="text-end">{{ item.unit_price | currency }}</td>
+                            <td class="text-end fw-semibold text-dark">{{ item.total_price | currency }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Calculation Summary Footer -->
+            <div class="row justify-content-end">
+                <div class="col-md-5 col-lg-4">
+                    <div class="p-3 bg-light rounded border">
+                        <div class="d-flex justify-content-between py-1">
+                            <span class="text-muted">Subtotal:</span>
+                            <span class="fw-medium">{{ purchase.subtotal | currency }}</span>
+                        </div>
+                        <div class="d-flex justify-content-between py-1">
+                            <span class="text-muted">Discount Applied:</span>
+                            <span class="text-success fw-medium">
+                                {% if purchase.discount and purchase.discount > 0 %}-{{ purchase.discount | currency }}{% else %}₹0.00{% endif %}
+                            </span>
+                        </div>
+                        <div class="d-flex justify-content-between py-1 border-bottom pb-2">
+                            <span class="text-muted">Tax / GST:</span>
+                            <span class="text-muted fw-medium">
+                                {% if purchase.tax and purchase.tax > 0 %}+{{ purchase.tax | currency }}{% else %}₹0.00{% endif %}
+                            </span>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center pt-2">
+                            <span class="fs-5 brand-font text-danger fw-bold">Grand Total:</span>
+                            <span class="fs-4 brand-font text-danger fw-bold">{{ purchase.total | currency }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 4. Stock Movement Audit Trail / Inventory Impact Card -->
+        <div class="vl-card mb-4 no-print">
+            <h2 class="h5 brand-font mb-3 text-danger">
+                <i class="bi bi-box-arrow-in-down me-2"></i> Inventory Impact & Stock Movement Audit
+            </h2>
+            <p class="text-muted small mb-3">
+                This inward purchase automatically increased warehouse stock and generated immutable audit records in <code>stock_movements</code>.
+            </p>
+
+            <div class="row g-3">
+                {% for item in items %}
+                <div class="col-md-6 col-lg-4">
+                    <div class="border rounded p-3 h-100 bg-white">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <h6 class="fw-bold mb-0 text-truncate" style="max-width: 180px;" title="{{ item.product_name }}">
+                                {{ item.product_name }}
+                            </h6>
+                            <span class="badge bg-success-subtle text-success border border-success-subtle font-monospace">
+                                +{{ item.quantity }} INWARD
+                            </span>
+                        </div>
+                        <div class="text-muted small mb-2">
+                            <span class="font-monospace text-dark">{{ item.sku }}</span> &bull; {{ item.color }} / {{ item.size }}
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center pt-2 border-top">
+                            <span class="text-muted small">Current Stock on Hand:</span>
+                            <span class="fw-bold text-dark">{{ item.current_stock }} pcs</span>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

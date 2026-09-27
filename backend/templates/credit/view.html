@@ -1,0 +1,241 @@
+{% extends "base.html" %}
+
+{% block title %}{{ customer.customer_name }} – Credit Ledger – VL Silks{% endblock %}
+{% block header_title %}Customer Credit Profile & Ledger{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+    <!-- Customer Credit Profile Summary Card -->
+    <div class="col-lg-4">
+        <div class="vl-card h-100">
+            <div class="d-flex justify-content-between align-items-start mb-3">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="rounded-circle bg-danger bg-opacity-10 text-danger d-flex align-items-center justify-content-center fw-bold fs-4"
+                         style="width: 54px; height: 54px; border: 2px solid rgba(139, 0, 0, 0.2);">
+                        {{ customer.customer_name[0] | upper }}
+                    </div>
+                    <div>
+                        <h2 class="h5 brand-font mb-0 text-dark">{{ customer.customer_name }}</h2>
+                        <span class="text-muted small">ID: #{{ customer.customer_id }}</span>
+                    </div>
+                </div>
+                <div>
+                    {% if customer.status == 'ACTIVE' %}
+                        <span class="vl-badge vl-badge-active"><i class="bi bi-check-circle-fill me-1"></i> Active</span>
+                    {% else %}
+                        <span class="vl-badge bg-secondary text-white"><i class="bi bi-dash-circle-fill me-1"></i> Inactive</span>
+                    {% endif %}
+                </div>
+            </div>
+
+            <hr class="my-3">
+
+            <!-- Credit Balance Callout Card -->
+            <div class="bg-light p-3 rounded border mb-3">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span class="small text-muted text-uppercase fw-semibold">Outstanding Udhaar</span>
+                    <span class="badge bg-danger text-white fs-6 fw-bold">{{ customer.outstanding_balance | currency }}</span>
+                </div>
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span class="small text-muted text-uppercase fw-semibold">Available Credit</span>
+                    <span class="fw-bold text-success">{{ customer.available_credit | currency }}</span>
+                </div>
+                <div class="d-flex justify-content-between align-items-center border-top pt-2">
+                    <span class="small text-muted text-uppercase fw-semibold">Credit Limit</span>
+                    <span class="fw-bold text-dark">{{ customer.credit_limit | currency }}</span>
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label class="text-muted small fw-semibold d-block text-uppercase">Contact Information</label>
+                <div class="small fw-semibold text-dark"><i class="bi bi-telephone text-danger me-2"></i>{{ customer.phone }}</div>
+                {% if customer.email %}
+                <div class="small text-muted mt-1"><i class="bi bi-envelope text-muted me-2"></i>{{ customer.email }}</div>
+                {% endif %}
+                {% if customer.address %}
+                <div class="small text-muted mt-1"><i class="bi bi-geo-alt text-muted me-2"></i>{{ customer.address }}</div>
+                {% endif %}
+            </div>
+
+            <div class="mb-4">
+                <label class="text-muted small fw-semibold d-block text-uppercase">Credit Account Statistics</label>
+                <div class="d-flex justify-content-between small py-1 border-bottom">
+                    <span class="text-muted">Total Credit Charges:</span>
+                    <span class="fw-semibold text-danger">{{ customer.total_credit_amount | currency }} ({{ customer.total_credit_sales_count }} sales)</span>
+                </div>
+                <div class="d-flex justify-content-between small py-1 border-bottom">
+                    <span class="text-muted">Total Settlements Paid:</span>
+                    <span class="fw-semibold text-success">{{ customer.total_paid_amount | currency }} ({{ customer.settlements_count }} payments)</span>
+                </div>
+                <div class="d-flex justify-content-between small py-1">
+                    <span class="text-muted">Last Activity:</span>
+                    <span class="text-muted">{{ customer.last_transaction_date or 'No transactions' }}</span>
+                </div>
+            </div>
+
+            <div class="d-grid gap-2">
+                <button type="button" class="btn btn-outline-danger py-2 fw-semibold" data-bs-toggle="modal" data-bs-target="#statementModal">
+                    <i class="bi bi-file-earmark-pdf-fill me-1"></i> Download Credit Statement
+                </button>
+                {% if customer.outstanding_balance > 0 %}
+                <a href="{{ url_for('credit.payment', customer_id=customer.customer_id) }}" class="btn btn-success py-2 fw-semibold">
+                    <i class="bi bi-cash-stack me-1"></i> Record Settlement Payment
+                </a>
+                {% endif %}
+                <a href="{{ url_for('customers.view', customer_id=customer.customer_id) }}" class="btn btn-outline-secondary">
+                    <i class="bi bi-person me-1"></i> Customer Profile
+                </a>
+                <a href="{{ url_for('credit.index') }}" class="btn btn-outline-secondary btn-sm">
+                    <i class="bi bi-arrow-left me-1"></i> Back to Credit Directory
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Chronological Credit Ledger Card -->
+    <div class="col-lg-8">
+        <div class="vl-card h-100">
+            <div class="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-2 mb-3 pb-3 border-bottom">
+                <div>
+                    <h3 class="h5 brand-font mb-1"><i class="bi bi-clock-history me-2 text-danger"></i> Chronological Credit Ledger</h3>
+                    <p class="text-muted small mb-0">Audit log of all Udhaar charges, settlement payments, and running balances</p>
+                </div>
+                <div class="d-flex gap-2">
+                    <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#statementModal">
+                        <i class="bi bi-download me-1"></i> Statement PDF
+                    </button>
+                    {% if customer.outstanding_balance > 0 %}
+                    <a href="{{ url_for('credit.payment', customer_id=customer.customer_id) }}" class="btn btn-success btn-sm">
+                        <i class="bi bi-cash me-1"></i> Record Payment
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="table-responsive">
+                <table class="vl-table">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Type</th>
+                            <th>Reference / Description</th>
+                            <th class="text-end">Debit (+)</th>
+                            <th class="text-end">Credit (-)</th>
+                            <th class="text-end">Running Balance</th>
+                            <th>Billed By</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if ledger %}
+                            {% for row in ledger %}
+                            <tr>
+                                <td class="small fw-semibold text-dark">{{ row.transaction_date }}</td>
+                                <td>
+                                    {% if row.transaction_type == 'CREDIT_SALE' %}
+                                        <span class="badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25 px-2 py-1">CREDIT SALE</span>
+                                    {% elif row.transaction_type == 'PAYMENT' %}
+                                        <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 px-2 py-1">SETTLEMENT</span>
+                                    {% elif row.transaction_type == 'RETURN_REFUND' %}
+                                        <span class="badge bg-info bg-opacity-10 text-info border border-info border-opacity-25 px-2 py-1">REFUND / RETURN</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary text-white px-2 py-1">{{ row.transaction_type }}</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if row.sale_id and row.invoice_number %}
+                                        <a href="{{ url_for('sales.view', sale_id=row.sale_id) }}" class="fw-bold text-decoration-none text-dark hover-maroon">
+                                            {{ row.invoice_number }}
+                                        </a>
+                                    {% elif row.payment_id %}
+                                        <span class="fw-bold text-dark">Payment #{{ row.payment_id }}</span>
+                                        {% if row.payment_method %}
+                                            <span class="badge bg-light text-muted border ms-1">{{ row.payment_method }}</span>
+                                        {% endif %}
+                                    {% endif %}
+                                    {% if row.notes %}
+                                        <div class="text-muted small">{{ row.notes }}</div>
+                                    {% endif %}
+                                </td>
+                                <td class="text-end fw-semibold text-danger">
+                                    {% if row.debit_amount > 0 %}
+                                        {{ row.debit_amount | currency }}
+                                    {% else %}
+                                        <span class="text-muted">—</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-end fw-semibold text-success">
+                                    {% if row.credit_amount > 0 %}
+                                        {{ row.credit_amount | currency }}
+                                    {% else %}
+                                        <span class="text-muted">—</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-end">
+                                    <span class="fw-bold {{ 'text-danger' if row.running_balance > 0 else 'text-success' }}">
+                                        {{ row.running_balance | currency }}
+                                    </span>
+                                </td>
+                                <td class="small text-muted">{{ row.created_by_name }}</td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="7" class="text-center py-5 text-muted">
+                                    <i class="bi bi-journal-x fs-2 d-block mb-2 text-secondary"></i>
+                                    <div class="fw-semibold">No credit transactions recorded.</div>
+                                    <div class="small">This customer has no historical Udhaar charges or settlements.</div>
+                                </td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Statement Period Download Modal -->
+<div class="modal fade" id="statementModal" tabindex="-1" aria-labelledby="statementModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <form action="{{ url_for('pdf.web_download_credit_statement', customer_id=customer.customer_id) }}" method="GET" target="_blank">
+                <div class="modal-header bg-light">
+                    <h5 class="modal-title brand-font text-danger" id="statementModalLabel">
+                        <i class="bi bi-file-earmark-pdf-fill me-2"></i> Download Credit Statement
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <p class="text-muted small mb-3">
+                        Generate an official, branded VL Silks Credit / Udhaar Statement PDF for <b>{{ customer.customer_name }}</b>.
+                    </p>
+                    <div class="row g-3">
+                        <div class="col-6">
+                            <label class="form-label small fw-semibold text-uppercase text-muted">From Date (Optional)</label>
+                            <input type="date" name="date_from" class="form-control" placeholder="YYYY-MM-DD">
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label small fw-semibold text-uppercase text-muted">To Date (Optional)</label>
+                            <input type="date" name="date_to" class="form-control" placeholder="YYYY-MM-DD">
+                        </div>
+                    </div>
+                    <div class="form-text mt-2 small text-muted">
+                        <i class="bi bi-info-circle me-1"></i> Leave dates empty to download full transaction history.
+                    </div>
+                </div>
+                <div class="modal-footer bg-light d-flex justify-content-between">
+                    <a href="{{ url_for('pdf.web_download_credit_statement', customer_id=customer.customer_id) }}" target="_blank" class="btn btn-outline-secondary">
+                        <i class="bi bi-clock-history me-1"></i> Full History PDF
+                    </a>
+                    <div>
+                        <button type="button" class="btn btn-secondary me-2" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-danger">
+                            <i class="bi bi-file-earmark-arrow-down me-1"></i> Download PDF
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

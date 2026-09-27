@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+
+{% block title %}Edit {{ category.category_name }} – VL Silks{% endblock %}
+{% block header_title %}Edit Garment Category{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8 col-md-10">
+        <div class="d-flex align-items-center justify-content-between mb-3">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-0">
+                    <li class="breadcrumb-item"><a href="{{ url_for('categories.index') }}" class="text-decoration-none text-danger">Categories</a></li>
+                    <li class="breadcrumb-item active">Edit {{ category.category_name }}</li>
+                </ol>
+            </nav>
+            <a href="{{ url_for('categories.index') }}" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-arrow-left me-1"></i> Back to Directory
+            </a>
+        </div>
+
+        <div class="vl-card mb-4">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <div class="d-flex align-items-center gap-2">
+                    <div class="vl-stat-icon" style="width: 32px; height: 32px; font-size: 1rem;">
+                        <i class="bi bi-pencil-square"></i>
+                    </div>
+                    <div>
+                        <h2 class="h5 brand-font mb-0 text-danger">Edit Category Specifications</h2>
+                        <p class="text-muted small mb-0">Category ID #{{ category.category_id }} &bull; Created {{ category.created_at.strftime('%d-%b-%Y') if category.created_at else '—' }}</p>
+                    </div>
+                </div>
+                <div>
+                    {% if category.status == 'ACTIVE' %}
+                        <span class="vl-badge vl-badge-active">Active</span>
+                    {% else %}
+                        <span class="vl-badge bg-secondary text-white">Inactive</span>
+                    {% endif %}
+                </div>
+            </div>
+
+            <form action="{{ url_for('categories.edit', category_id=category.category_id) }}" method="POST">
+                <div class="row g-3">
+                    <div class="col-md-8">
+                        <label class="vl-form-label" for="category_name">Category Name <span class="text-danger">*</span></label>
+                        <input type="text" id="category_name" name="category_name" class="vl-form-input" required value="{{ form_data.get('category_name', category.category_name) }}">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="vl-form-label" for="status">Category Status</label>
+                        <select id="status" name="status" class="form-select">
+                            <option value="ACTIVE" {% if form_data.get('status', category.status) == 'ACTIVE' %}selected{% endif %}>Active</option>
+                            <option value="INACTIVE" {% if form_data.get('status', category.status) == 'INACTIVE' %}selected{% endif %}>Inactive</option>
+                        </select>
+                    </div>
+                    <div class="col-12">
+                        <label class="vl-form-label" for="description">Category Description / Notes</label>
+                        <textarea id="description" name="description" class="form-control" rows="3">{{ form_data.get('description', category.description or '') }}</textarea>
+                    </div>
+                </div>
+
+                <!-- Association Info Box -->
+                <div class="mt-4 p-3 bg-light rounded border d-flex justify-content-between align-items-center">
+                    <div>
+                        <span class="fw-semibold text-dark small d-block"><i class="bi bi-info-circle me-1 text-primary"></i> Product Catalog Dependency:</span>
+                        <span class="text-muted small">This category currently has <strong>{{ category.product_count }} product(s)</strong> cataloged. Editing the category name updates catalog labeling safely.</span>
+                    </div>
+                    <a href="{{ url_for('products.index', category_id=category.category_id) }}" class="btn btn-outline-dark btn-sm">
+                        View Products
+                    </a>
+                </div>
+
+                <div class="d-flex justify-content-end gap-3 mt-4 pt-3 border-top">
+                    <a href="{{ url_for('categories.index') }}" class="btn btn-outline-secondary px-4">Cancel</a>
+                    <button type="submit" class="vl-btn-maroon px-4 py-2">
+                        <i class="bi bi-save me-1"></i> Update Category
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,153 @@
+﻿{% extends "base.html" %}
+{% block title %}Purchase Report{% endblock %}
+{% block header_title %}Purchase Report{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+
+  <div class="card shadow-sm border-0 mb-4" style="border-radius:12px;">
+    <div class="card-body p-3">
+      <form method="get" action="{{ url_for('reports.purchases') }}" class="row g-2 align-items-end">
+        <div class="col-auto">
+          <label class="form-label fw-semibold small mb-1">From</label>
+          <input type="date" name="start_date" class="form-control form-control-sm" value="{{ start_date }}">
+        </div>
+        <div class="col-auto">
+          <label class="form-label fw-semibold small mb-1">To</label>
+          <input type="date" name="end_date" class="form-control form-control-sm" value="{{ end_date }}">
+        </div>
+        <div class="col-auto">
+          <button type="submit" class="btn btn-sm text-white" style="background:#6c3483"><i class="bi bi-funnel me-1"></i>Filter</button>
+        </div>
+        <div class="col-auto ms-auto">
+          <a href="#" onclick="exportCsv()" class="btn btn-sm btn-success" id="exportPurchasesCsv">
+            <i class="bi bi-file-earmark-excel me-1"></i>Export CSV
+          </a>
+          <button onclick="window.print()" class="btn btn-sm btn-outline-secondary ms-1"><i class="bi bi-printer me-1"></i>Print</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  {% set sm = report.summary %}
+  <div class="row g-3 mb-4">
+    <div class="col-6 col-md-3">
+      <div class="card border-0 shadow-sm text-center p-3" style="border-radius:10px;">
+        <div class="fw-bold fs-5" style="color:#6c3483">{{ sm.bill_count }}</div>
+        <div class="small text-muted">Purchase Bills</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="card border-0 shadow-sm text-center p-3" style="border-radius:10px;">
+        <div class="fw-bold fs-5 text-danger">{{ sm.total_cost | currency }}</div>
+        <div class="small text-muted">Total Cost</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="card border-0 shadow-sm text-center p-3" style="border-radius:10px;">
+        <div class="fw-bold fs-5 text-success">{{ sm.total_paid | currency }}</div>
+        <div class="small text-muted">Paid to Suppliers</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="card border-0 shadow-sm text-center p-3" style="border-radius:10px; background:#fff3cd;">
+        <div class="fw-bold fs-5 text-warning">{{ sm.total_due | currency }}</div>
+        <div class="small text-muted">Still Due</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card shadow-sm border-0" style="border-radius:12px;">
+    <div class="card-header bg-white border-0 py-3 px-4 d-flex justify-content-between align-items-center">
+      <h6 class="fw-bold mb-0"><i class="bi bi-table me-2" style="color:#6c3483"></i>Purchase Bills ({{ start_date }} to {{ end_date }})</h6>
+      <span class="badge" style="background:#6c3483">{{ sm.bill_count }} bills · {{ sm.total_units }} units</span>
+    </div>
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-sm table-hover mb-0 align-middle">
+          <thead class="table-light">
+            <tr>
+              <th class="px-3">Invoice</th><th>Date</th><th>Supplier</th>
+              <th class="text-end">Total Cost</th><th class="text-end">Paid</th>
+              <th class="text-end">Due</th><th>Status</th><th>Method</th><th class="text-end">Units</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for p in report.purchases %}
+            <tr>
+              <td class="px-3"><span class="fw-semibold" style="color:#6c3483">{{ p.purchase_invoice or '—' }}</span></td>
+              <td class="text-nowrap small">{{ p.purchase_date }}</td>
+              <td>
+                <div>{{ p.supplier_name }}</div>
+                {% if p.supplier_phone %}<small class="text-muted">{{ p.supplier_phone }}</small>{% endif %}
+              </td>
+              <td class="text-end fw-semibold">{{ p.total_amount | currency }}</td>
+              <td class="text-end text-success">{{ p.paid_amount | currency }}</td>
+              <td class="text-end">{% if p.balance_amount > 0 %}<span class="text-danger fw-semibold">{{ p.balance_amount | currency }}</span>{% else %}<span class="text-success">Nil</span>{% endif %}</td>
+              <td>
+                {% if p.payment_status == 'PAID' %}<span class="badge bg-success">PAID</span>
+                {% elif p.payment_status == 'PARTIAL' %}<span class="badge bg-warning text-dark">PARTIAL</span>
+                {% else %}<span class="badge bg-danger">{{ p.payment_status }}</span>{% endif %}
+              </td>
+              <td><span class="badge bg-light text-dark border">{{ p.payment_method or '—' }}</span></td>
+              <td class="text-end">{{ p.units_purchased }}</td>
+            </tr>
+            {% else %}
+            <tr><td colspan="9" class="text-center text-muted py-4">No purchases found for this date range.</td></tr>
+            {% endfor %}
+          </tbody>
+          {% if report.purchases %}
+          <tfoot class="table-light fw-bold">
+            <tr>
+              <td colspan="3" class="px-3">TOTAL</td>
+              <td class="text-end">{{ sm.total_cost | currency }}</td>
+              <td class="text-end text-success">{{ sm.total_paid | currency }}</td>
+              <td class="text-end text-danger">{{ sm.total_due | currency }}</td>
+              <td colspan="2"></td>
+              <td class="text-end">{{ sm.total_units }}</td>
+            </tr>
+          </tfoot>
+          {% endif %}
+        </table>
+      </div>
+    </div>
+  </div>
+
+  {% if report.supplier_breakdown %}
+  <div class="card shadow-sm border-0 mt-4" style="border-radius:12px;">
+    <div class="card-header bg-white border-0 py-3 px-4">
+      <h6 class="fw-bold mb-0"><i class="bi bi-truck me-2" style="color:#6c3483"></i>Supplier-wise Breakdown</h6>
+    </div>
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-sm mb-0 align-middle">
+          <thead class="table-light">
+            <tr><th class="px-3">Supplier</th><th class="text-end">Bills</th><th class="text-end">Total Cost</th><th class="text-end">Paid</th><th class="text-end">Due</th></tr>
+          </thead>
+          <tbody>
+            {% for s in report.supplier_breakdown %}
+            <tr>
+              <td class="px-3 fw-semibold">{{ s.supplier_name }}</td>
+              <td class="text-end">{{ s.bills }}</td>
+              <td class="text-end">{{ s.total_cost | currency }}</td>
+              <td class="text-end text-success">{{ s.total_paid | currency }}</td>
+              <td class="text-end {% if s.total_due > 0 %}text-danger fw-semibold{% endif %}">{{ s.total_due | currency }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+function exportCsv() {
+  const p = new URLSearchParams(window.location.search);
+  window.location.href = '/api/reports/purchases/csv?' + p.toString();
+}
+</script>
+{% endblock %}

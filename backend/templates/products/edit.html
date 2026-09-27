@@ -1,0 +1,201 @@
+{% extends "base.html" %}
+
+{% block title %}Edit {{ product.product_name }} – VL Silks{% endblock %}
+{% block header_title %}Edit Garment & Variants{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-12">
+        <div class="d-flex align-items-center justify-content-between mb-3">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-0">
+                    <li class="breadcrumb-item"><a href="{{ url_for('products.index') }}" class="text-decoration-none text-danger">Products</a></li>
+                    <li class="breadcrumb-item"><a href="{{ url_for('products.view', product_id=product.product_id) }}" class="text-decoration-none text-danger">{{ product.product_name }}</a></li>
+                    <li class="breadcrumb-item active">Edit</li>
+                </ol>
+            </nav>
+            <div class="d-flex gap-2">
+                <a href="{{ url_for('products.view', product_id=product.product_id) }}" class="btn btn-outline-secondary btn-sm">
+                    <i class="bi bi-eye me-1"></i> View Details
+                </a>
+                <a href="{{ url_for('products.index') }}" class="btn btn-outline-secondary btn-sm">
+                    <i class="bi bi-arrow-left me-1"></i> Back to Catalog
+                </a>
+            </div>
+        </div>
+
+        <!-- 1. Edit Base Garment Details Form -->
+        <div class="vl-card mb-4">
+            <h2 class="h5 brand-font mb-3 text-danger"><i class="bi bi-pencil-square me-2"></i> 1. Base Garment Specifications</h2>
+            <form action="{{ url_for('products.edit', product_id=product.product_id) }}" method="POST">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="vl-form-label" for="product_name">Garment Name <span class="text-danger">*</span></label>
+                        <input type="text" id="product_name" name="product_name" class="vl-form-input" required value="{{ product.product_name }}">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="vl-form-label" for="category_id">Category <span class="text-danger">*</span></label>
+                        <select id="category_id" name="category_id" class="form-select" required>
+                            {% for cat in categories %}
+                                <option value="{{ cat.category_id }}" {% if product.category_id == cat.category_id %}selected{% endif %}>
+                                    {{ cat.category_name }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="vl-form-label" for="brand">Brand</label>
+                        <input type="text" id="brand" name="brand" class="vl-form-input" value="{{ product.brand }}">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="vl-form-label" for="material">Fabric / Material</label>
+                        <input type="text" id="material" name="material" class="vl-form-input" value="{{ product.material or '' }}">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="vl-form-label" for="status">Catalog Status</label>
+                        <select id="status" name="status" class="form-select">
+                            <option value="ACTIVE" {% if product.status == 'ACTIVE' %}selected{% endif %}>Active (Visible)</option>
+                            <option value="INACTIVE" {% if product.status == 'INACTIVE' %}selected{% endif %}>Inactive (Hidden)</option>
+                        </select>
+                    </div>
+                    <div class="col-12">
+                        <label class="vl-form-label" for="description">Garment Description / Weaving Details</label>
+                        <textarea id="description" name="description" class="form-control" rows="2">{{ product.description or '' }}</textarea>
+                    </div>
+                </div>
+
+                <div class="d-flex justify-content-end gap-2 mt-4 pt-3 border-top">
+                    <button type="submit" class="vl-btn-maroon">
+                        <i class="bi bi-save me-1"></i> Save Base Garment Details
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- 2. Existing Product Variants Management -->
+        <div class="vl-card mb-4">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <div>
+                    <h2 class="h5 brand-font mb-1 text-danger"><i class="bi bi-boxes me-2"></i> 2. Manage Existing Variants</h2>
+                    <p class="text-muted small mb-0">Update pricing, barcodes, and thresholds. Stock quantity is strictly managed via stock movements.</p>
+                </div>
+            </div>
+
+            <div class="table-responsive">
+                <table class="vl-table">
+                    <thead>
+                        <tr>
+                            <th>SKU</th>
+                            <th>Size</th>
+                            <th>Color</th>
+                            <th>Purchase Price (₹)</th>
+                            <th>Selling Price (₹)</th>
+                            <th class="text-center">Stock</th>
+                            <th>Min Stock</th>
+                            <th>Barcode</th>
+                            <th>Status</th>
+                            <th class="text-end">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if variants %}
+                            {% for v in variants %}
+                            <tr>
+                                <td>
+                                    <form id="variant-form-{{ v.variant_id }}" action="{{ url_for('products.edit_variant', variant_id=v.variant_id) }}" method="POST"></form>
+                                    <input type="text" form="variant-form-{{ v.variant_id }}" name="sku" class="form-control form-control-sm font-monospace fw-bold" value="{{ v.sku }}" required style="min-width: 130px;">
+                                </td>
+                                <td>
+                                    <input type="text" form="variant-form-{{ v.variant_id }}" name="size" class="form-control form-control-sm" value="{{ v.size }}" required style="width: 90px;">
+                                </td>
+                                <td>
+                                    <input type="text" form="variant-form-{{ v.variant_id }}" name="color" class="form-control form-control-sm" value="{{ v.color }}" required style="min-width: 110px;">
+                                </td>
+                                <td>
+                                    <input type="number" step="0.01" min="0" form="variant-form-{{ v.variant_id }}" name="purchase_price" class="form-control form-control-sm" value="{{ v.purchase_price }}" style="width: 110px;">
+                                </td>
+                                <td>
+                                    <input type="number" step="0.01" min="0" form="variant-form-{{ v.variant_id }}" name="selling_price" class="form-control form-control-sm" value="{{ v.selling_price }}" required style="width: 110px;">
+                                </td>
+                                <td class="text-center">
+                                    <span class="badge bg-light text-dark border px-2 py-1 fw-bold fs-6">{{ v.stock_quantity }}</span>
+                                </td>
+                                <td>
+                                    <input type="number" min="0" form="variant-form-{{ v.variant_id }}" name="minimum_stock" class="form-control form-control-sm" value="{{ v.minimum_stock }}" style="width: 80px;">
+                                </td>
+                                <td>
+                                    <input type="text" form="variant-form-{{ v.variant_id }}" name="barcode" class="form-control form-control-sm" value="{{ v.barcode or '' }}" placeholder="Barcode" style="min-width: 110px;">
+                                </td>
+                                <td>
+                                    <select form="variant-form-{{ v.variant_id }}" name="status" class="form-select form-select-sm" style="width: 95px;">
+                                        <option value="ACTIVE" {% if v.status == 'ACTIVE' %}selected{% endif %}>Active</option>
+                                        <option value="INACTIVE" {% if v.status == 'INACTIVE' %}selected{% endif %}>Inactive</option>
+                                    </select>
+                                </td>
+                                <td class="text-end">
+                                    <div class="btn-group btn-group-sm">
+                                        <button type="submit" form="variant-form-{{ v.variant_id }}" class="btn btn-outline-success" title="Save Variant Changes">
+                                            <i class="bi bi-check-lg"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="10" class="text-center py-4 text-muted">No variants configured.</td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- 3. Add New Variant Card -->
+        <div class="vl-card mb-4" id="addVariantSection">
+            <h2 class="h5 brand-font mb-3 text-danger"><i class="bi bi-plus-circle-fill me-2"></i> 3. Add New Variant to this Garment</h2>
+            <form action="{{ url_for('products.add_variant', product_id=product.product_id) }}" method="POST">
+                <div class="row g-3">
+                    <div class="col-md-3">
+                        <label class="vl-form-label" for="new_sku">SKU Code <span class="text-danger">*</span></label>
+                        <input type="text" id="new_sku" name="sku" class="vl-form-input" placeholder="e.g. KAN-GLD-FS" required>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="vl-form-label" for="new_size">Size <span class="text-danger">*</span></label>
+                        <input type="text" id="new_size" name="size" class="vl-form-input" placeholder="Free Size / M" value="Free Size" required>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="vl-form-label" for="new_color">Color <span class="text-danger">*</span></label>
+                        <input type="text" id="new_color" name="color" class="vl-form-input" placeholder="e.g. Mustard Yellow" required>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="vl-form-label" for="new_purchase_price">Purchase Price (₹)</label>
+                        <input type="number" step="0.01" min="0" id="new_purchase_price" name="purchase_price" class="vl-form-input" placeholder="0.00" value="0.00">
+                    </div>
+                    <div class="col-md-2">
+                        <label class="vl-form-label" for="new_selling_price">Selling Price (₹) <span class="text-danger">*</span></label>
+                        <input type="number" step="0.01" min="0" id="new_selling_price" name="selling_price" class="vl-form-input" placeholder="0.00" required>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="vl-form-label" for="new_stock">Initial Opening Stock</label>
+                        <input type="number" min="0" id="new_stock" name="stock_quantity" class="vl-form-input" placeholder="0" value="0">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="vl-form-label" for="new_min_stock">Minimum Stock Alert</label>
+                        <input type="number" min="0" id="new_min_stock" name="minimum_stock" class="vl-form-input" placeholder="5" value="5">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="vl-form-label" for="new_barcode">Barcode (Optional)</label>
+                        <input type="text" id="new_barcode" name="barcode" class="vl-form-input" placeholder="Barcode">
+                    </div>
+                    <div class="col-md-3 d-flex align-items-end">
+                        <button type="submit" class="vl-btn-gold w-100 justify-content-center py-2">
+                            <i class="bi bi-plus-lg"></i> Add Variant
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

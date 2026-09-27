@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+
+{% block title %}Out of Stock Items – VL Silks{% endblock %}
+{% block header_title %}Out of Stock Monitor{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-12">
+        <div class="d-flex align-items-center justify-content-between mb-3">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-0">
+                    <li class="breadcrumb-item"><a href="{{ url_for('inventory.index') }}" class="text-decoration-none text-danger">Inventory</a></li>
+                    <li class="breadcrumb-item active">Out of Stock</li>
+                </ol>
+            </nav>
+            <div class="d-flex gap-2">
+                <a href="{{ url_for('inventory.index') }}" class="btn btn-outline-secondary btn-sm">
+                    <i class="bi bi-arrow-left me-1"></i> All Inventory
+                </a>
+                {% if session.get('user_role') == 'ADMIN' %}
+                <a href="{{ url_for('purchases.new') }}" class="vl-btn-maroon btn-sm">
+                    <i class="bi bi-plus-lg me-1"></i> Inward Purchase
+                </a>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Out of Stock Critical Alert Banner -->
+        <div class="alert alert-danger border-0 mb-4 p-4 shadow-sm">
+            <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
+                <div class="d-flex gap-3 align-items-center">
+                    <i class="bi bi-x-circle-fill fs-1 text-danger"></i>
+                    <div>
+                        <h5 class="fw-bold mb-1">Critical Stockout: {{ items|length }} Garment SKUs Have Zero Units</h5>
+                        <p class="mb-0 small text-muted">
+                            Customers cannot purchase these sizes and colors until inward stock arrives. Immediate restocking is recommended.
+                        </p>
+                    </div>
+                </div>
+                {% if session.get('user_role') == 'ADMIN' and items|length > 0 %}
+                <a href="{{ url_for('purchases.new') }}" class="btn btn-danger btn-sm text-nowrap">
+                    <i class="bi bi-bag-plus-fill me-1"></i> Order Inward Stock
+                </a>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Out of Stock Items Table -->
+        <div class="vl-card">
+            <h2 class="h5 brand-font mb-3 text-danger"><i class="bi bi-slash-circle me-2"></i> Out of Stock Garments</h2>
+            <div class="table-responsive">
+                <table class="vl-table">
+                    <thead>
+                        <tr>
+                            <th>Garment Product</th>
+                            <th>Category</th>
+                            <th>SKU</th>
+                            <th>Size & Color</th>
+                            <th class="text-center">Current Stock</th>
+                            <th class="text-center">Min Threshold</th>
+                            <th class="text-end">Cost Price</th>
+                            <th class="text-end">Selling Price</th>
+                            {% if session.get('user_role') == 'ADMIN' %}
+                            <th class="text-end">Actions</th>
+                            {% endif %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if items %}
+                            {% for item in items %}
+                            <tr>
+                                <td>
+                                    <a href="{{ url_for('products.view', product_id=item.product_id) }}" class="fw-semibold text-danger text-decoration-none">
+                                        {{ item.product_name }}
+                                    </a>
+                                </td>
+                                <td><span class="badge bg-light text-dark border">{{ item.category_name }}</span></td>
+                                <td><span class="font-monospace fw-medium text-dark">{{ item.sku }}</span></td>
+                                <td>
+                                    <span class="badge bg-secondary-subtle text-dark me-1">{{ item.color }}</span>
+                                    <span class="badge bg-light text-secondary border">{{ item.size }}</span>
+                                </td>
+                                <td class="text-center">
+                                    <span class="badge bg-danger text-white fs-6 px-3">
+                                        0 pcs (Stockout)
+                                    </span>
+                                </td>
+                                <td class="text-center text-muted">
+                                    {{ item.minimum_stock }} pcs
+                                </td>
+                                <td class="text-end text-muted">{{ item.purchase_price | currency }}</td>
+                                <td class="text-end fw-semibold text-dark">{{ item.selling_price | currency }}</td>
+                                {% if session.get('user_role') == 'ADMIN' %}
+                                <td class="text-end">
+                                    <a href="{{ url_for('inventory.adjustment', variant_id=item.variant_id) }}" class="btn btn-outline-secondary btn-sm" title="Adjust Stock">
+                                        <i class="bi bi-sliders"></i>
+                                    </a>
+                                </td>
+                                {% endif %}
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="9" class="text-center py-5">
+                                    <div class="text-success">
+                                        <i class="bi bi-check-all fs-1 d-block mb-3"></i>
+                                        <h5>Zero Stockouts!</h5>
+                                        <p class="text-muted mb-0">All active garment variants currently have stock on hand.</p>
+                                    </div>
+                                </td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

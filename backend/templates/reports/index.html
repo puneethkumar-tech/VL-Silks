@@ -1,0 +1,113 @@
+﻿{% extends "base.html" %}
+{% block title %}Reports{% endblock %}
+{% block header_title %}Reports & Analytics{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+  <div class="row g-3 mb-4">
+    <div class="col-12">
+      <h2 class="fw-bold mb-1" style="color:#8B0000"><i class="bi bi-file-earmark-bar-graph-fill me-2"></i>VL Silks Reports</h2>
+      <p class="text-muted mb-0">Generate and export business reports for sales, purchases, inventory, credit, and profit analysis.</p>
+    </div>
+  </div>
+
+  <div class="row g-4">
+
+    <!-- Sales Report -->
+    <div class="col-md-6 col-xl-4">
+      <div class="card h-100 shadow-sm border-0" style="border-left:5px solid #8B0000 !important; border-radius:12px;">
+        <div class="card-body p-4">
+          <div class="d-flex align-items-center mb-3">
+            <span class="fs-2 me-3" style="color:#8B0000"><i class="bi bi-cart-check-fill"></i></span>
+            <div>
+              <h5 class="fw-bold mb-0">Sales Report</h5>
+              <small class="text-muted">Revenue, payment & customer breakdown</small>
+            </div>
+          </div>
+          <p class="text-muted small mb-3">View all invoices within a date range. Filter by payment method. Export to CSV.</p>
+          <a href="{{ url_for('reports.sales') }}" class="btn btn-sm text-white" style="background:#8B0000">
+            <i class="bi bi-arrow-right-circle me-1"></i>View Sales Report
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <!-- Purchase Report -->
+    <div class="col-md-6 col-xl-4">
+      <div class="card h-100 shadow-sm border-0" style="border-left:5px solid #6c3483 !important; border-radius:12px;">
+        <div class="card-body p-4">
+          <div class="d-flex align-items-center mb-3">
+            <span class="fs-2 me-3" style="color:#6c3483"><i class="bi bi-bag-plus-fill"></i></span>
+            <div>
+              <h5 class="fw-bold mb-0">Purchase Report</h5>
+              <small class="text-muted">Supplier-wise inward stock & costs</small>
+            </div>
+          </div>
+          <p class="text-muted small mb-3">Track purchases from each supplier within any date range. Export to CSV.</p>
+          <a href="{{ url_for('reports.purchases') }}" class="btn btn-sm text-white" style="background:#6c3483">
+            <i class="bi bi-arrow-right-circle me-1"></i>View Purchase Report
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <!-- Inventory Valuation -->
+    <div class="col-md-6 col-xl-4">
+      <div class="card h-100 shadow-sm border-0" style="border-left:5px solid #117a65 !important; border-radius:12px;">
+        <div class="card-body p-4">
+          <div class="d-flex align-items-center mb-3">
+            <span class="fs-2 me-3" style="color:#117a65"><i class="bi bi-boxes"></i></span>
+            <div>
+              <h5 class="fw-bold mb-0">Inventory Valuation</h5>
+              <small class="text-muted">Stock on hand valued at cost & selling price</small>
+            </div>
+          </div>
+          <p class="text-muted small mb-3">Current stock value per variant at purchase price and selling price. Export to CSV.</p>
+          <a href="{{ url_for('reports.inventory_valuation') }}" class="btn btn-sm text-white" style="background:#117a65">
+            <i class="bi bi-arrow-right-circle me-1"></i>View Inventory Valuation
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <!-- Credit Aging -->
+    <div class="col-md-6 col-xl-4">
+      <div class="card h-100 shadow-sm border-0" style="border-left:5px solid #c0392b !important; border-radius:12px;">
+        <div class="card-body p-4">
+          <div class="d-flex align-items-center mb-3">
+            <span class="fs-2 me-3" style="color:#c0392b"><i class="bi bi-journal-bookmark-fill"></i></span>
+            <div>
+              <h5 class="fw-bold mb-0">Credit / Udhaar Aging</h5>
+              <small class="text-muted">Outstanding balances by age buckets</small>
+            </div>
+          </div>
+          <p class="text-muted small mb-3">See who owes money and for how long — bucketed by 30/60/90/90+ days. Export to CSV.</p>
+          <a href="{{ url_for('reports.credit_aging') }}" class="btn btn-sm text-white" style="background:#c0392b">
+            <i class="bi bi-arrow-right-circle me-1"></i>View Credit Aging Report
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <!-- Profit Report -->
+    <div class="col-md-6 col-xl-4">
+      <div class="card h-100 shadow-sm border-0" style="border-left:5px solid #D4AF37 !important; border-radius:12px;">
+        <div class="card-body p-4">
+          <div class="d-flex align-items-center mb-3">
+            <span class="fs-2 me-3" style="color:#b8960a"><i class="bi bi-graph-up-arrow"></i></span>
+            <div>
+              <h5 class="fw-bold mb-0">Profit Report</h5>
+              <small class="text-muted">Gross margin per product</small>
+            </div>
+          </div>
+          <p class="text-muted small mb-3">Gross profit = selling price − purchase cost per unit sold. Filter by date range.</p>
+          <a href="{{ url_for('reports.profit') }}" class="btn btn-sm" style="background:#D4AF37; color:#1a1a1a; font-weight:600;">
+            <i class="bi bi-arrow-right-circle me-1"></i>View Profit Report
+          </a>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}

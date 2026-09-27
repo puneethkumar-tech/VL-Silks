@@ -1,0 +1,169 @@
+{% extends "base.html" %}
+
+{% block title %}Credit & Udhaar Ledger – VL Silks{% endblock %}
+{% block header_title %}Credit / Udhaar Management{% endblock %}
+
+{% block content %}
+<!-- Credit Summary Metric Cards -->
+<div class="row g-3 mb-4">
+    <div class="col-sm-6 col-lg-3">
+        <div class="vl-stat-card h-100">
+            <div class="vl-stat-header">
+                <span class="vl-stat-title">Credit to Collect</span>
+                <span class="vl-stat-icon text-danger"><i class="bi bi-cash-stack"></i></span>
+            </div>
+            <div class="vl-stat-value text-danger">{{ summary.total_credit_to_collect | currency }}</div>
+            <div class="vl-stat-subtext">Total receivables outstanding</div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-lg-3">
+        <div class="vl-stat-card h-100">
+            <div class="vl-stat-header">
+                <span class="vl-stat-title">Credit Customers</span>
+                <span class="vl-stat-icon text-warning"><i class="bi bi-people-fill"></i></span>
+            </div>
+            <div class="vl-stat-value">{{ summary.total_credit_customers }}</div>
+            <div class="vl-stat-subtext">Customers with pending Udhaar</div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-lg-3">
+        <div class="vl-stat-card h-100">
+            <div class="vl-stat-header">
+                <span class="vl-stat-title">Total Credit Sales</span>
+                <span class="vl-stat-icon"><i class="bi bi-receipt"></i></span>
+            </div>
+            <div class="vl-stat-value">{{ summary.total_credit_sales_amount | currency }}</div>
+            <div class="vl-stat-subtext">{{ summary.total_credit_sales_count }} credit invoice(s)</div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-lg-3">
+        <div class="vl-stat-card h-100">
+            <div class="vl-stat-header">
+                <span class="vl-stat-title">Total Settlements</span>
+                <span class="vl-stat-icon text-success"><i class="bi bi-check2-circle"></i></span>
+            </div>
+            <div class="vl-stat-value text-success">{{ summary.total_settlements_amount | currency }}</div>
+            <div class="vl-stat-subtext">{{ summary.total_settlements_count }} payment(s) collected</div>
+        </div>
+    </div>
+</div>
+
+<!-- Main Credit Customer Table Card -->
+<div class="vl-card">
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
+        <div>
+            <h2 class="h5 brand-font mb-1"><i class="bi bi-journal-bookmark me-2 text-danger"></i> Outstanding Credit Customers</h2>
+            <p class="text-muted small mb-0">Track customer credit balances, available limits, payment history, and record settlements</p>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{{ url_for('sales.new') }}" class="vl-btn-maroon">
+                <i class="bi bi-cart-plus me-1"></i> <span>New Sale (POS)</span>
+            </a>
+        </div>
+    </div>
+
+    <!-- Search & Filters -->
+    <form method="GET" action="{{ url_for('credit.index') }}" class="row g-2 mb-4 p-3 bg-light rounded border">
+        <div class="col-lg-6 col-md-5">
+            <div class="input-group">
+                <span class="input-group-text bg-white border-end-0"><i class="bi bi-search text-muted"></i></span>
+                <input type="text" name="search" class="form-control border-start-0"
+                    placeholder="Search by customer name, phone, or email..."
+                    value="{{ current_search }}">
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-3">
+            <select name="status" class="form-select">
+                <option value="ALL" {% if current_status == 'ALL' %}selected{% endif %}>All Account Statuses</option>
+                <option value="ACTIVE" {% if current_status == 'ACTIVE' %}selected{% endif %}>Active Customers Only</option>
+                <option value="INACTIVE" {% if current_status == 'INACTIVE' %}selected{% endif %}>Inactive Customers Only</option>
+            </select>
+        </div>
+        <div class="col-lg-3 col-md-4 d-flex gap-2">
+            <button type="submit" class="btn btn-dark w-100">
+                <i class="bi bi-funnel-fill me-1"></i> Filter
+            </button>
+            {% if current_search or (current_status and current_status != 'ALL') or current_min_balance %}
+            <a href="{{ url_for('credit.index') }}" class="btn btn-outline-secondary" title="Reset filters">
+                <i class="bi bi-arrow-counterclockwise"></i>
+            </a>
+            {% endif %}
+        </div>
+    </form>
+
+    <!-- Credit Directory Table -->
+    <div class="table-responsive">
+        <table class="vl-table">
+            <thead>
+                <tr>
+                    <th>Customer Name</th>
+                    <th>Phone / Email</th>
+                    <th class="text-end">Credit Limit</th>
+                    <th class="text-end">Outstanding Udhaar</th>
+                    <th class="text-end">Available Credit</th>
+                    <th class="text-center">Activity</th>
+                    <th>Last Transaction</th>
+                    <th class="text-end">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if customers %}
+                    {% for c in customers %}
+                    <tr>
+                        <td>
+                            <a href="{{ url_for('credit.view', customer_id=c.customer_id) }}" class="fw-bold text-dark text-decoration-none fs-6 d-block hover-maroon">
+                                {{ c.customer_name }}
+                            </a>
+                            <div class="text-muted small">ID: #{{ c.customer_id }}</div>
+                        </td>
+                        <td>
+                            <div class="small fw-semibold"><i class="bi bi-telephone me-1 text-muted"></i>{{ c.phone }}</div>
+                            {% if c.email %}
+                            <div class="small text-muted"><i class="bi bi-envelope me-1"></i>{{ c.email }}</div>
+                            {% endif %}
+                        </td>
+                        <td class="text-end fw-semibold text-muted">
+                            {{ c.credit_limit | currency }}
+                        </td>
+                        <td class="text-end">
+                            <span class="badge bg-danger text-white px-2 py-1 fs-6 fw-bold">
+                                {{ c.outstanding_balance | currency }}
+                            </span>
+                        </td>
+                        <td class="text-end fw-semibold text-success">
+                            {{ c.available_credit | currency }}
+                        </td>
+                        <td class="text-center">
+                            <span class="badge bg-light text-dark border">
+                                {{ c.transaction_count }} txn(s)
+                            </span>
+                        </td>
+                        <td class="small text-muted">
+                            {{ c.last_transaction_date or '—' }}
+                        </td>
+                        <td class="text-end">
+                            <div class="btn-group btn-group-sm">
+                                <a href="{{ url_for('credit.view', customer_id=c.customer_id) }}" class="btn btn-outline-primary" title="View Credit Ledger">
+                                    <i class="bi bi-eye"></i> Ledger
+                                </a>
+                                <a href="{{ url_for('credit.payment', customer_id=c.customer_id) }}" class="btn btn-success" title="Record Settlement Payment">
+                                    <i class="bi bi-cash me-1"></i> Settle
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr>
+                        <td colspan="8" class="text-center py-5 text-muted">
+                            <i class="bi bi-emoji-smile fs-1 d-block mb-2 text-success"></i>
+                            <div class="fw-bold fs-5 text-dark">No Outstanding Credit!</div>
+                            <div class="small text-muted">All customers are currently settled or match no filters.</div>
+                        </td>
+                    </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

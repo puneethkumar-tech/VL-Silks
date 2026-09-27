@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+
+{% block title %}Edit User – VL Silks{% endblock %}
+{% block header_title %}Edit User Account{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-7">
+        <div class="vl-card">
+            <div class="d-flex align-items-center mb-4">
+                <div>
+                    <h2 class="h5 brand-font mb-1"><i class="bi bi-pencil-square me-2 text-danger"></i> Edit User Account</h2>
+                    <p class="text-muted small mb-0">Update account details, change role, or reset password for <strong>{{ user.name }}</strong></p>
+                </div>
+                <div class="ms-auto">
+                    <a href="{{ url_for('users.index') }}" class="btn btn-outline-secondary btn-sm">
+                        <i class="bi bi-arrow-left"></i> Back to Users
+                    </a>
+                </div>
+            </div>
+
+            <form method="POST" action="{{ url_for('users.edit', user_id=user.user_id) }}" novalidate>
+                <!-- Account Info -->
+                <div class="mb-4">
+                    <h6 class="text-uppercase text-muted fw-semibold border-bottom pb-2 mb-3" style="letter-spacing:.06em; font-size:.75rem;">
+                        <i class="bi bi-person-lines-fill me-1"></i> User Information
+                    </h6>
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <label for="name" class="form-label fw-semibold">Full Name <span class="text-danger">*</span></label>
+                            <input type="text" id="name" name="name" class="form-control"
+                                placeholder="e.g., Rajesh Kumar"
+                                value="{{ form_data.get('name', user.name) }}" required maxlength="100">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="email" class="form-label fw-semibold">Email Address <span class="text-danger">*</span></label>
+                            <input type="email" id="email" name="email" class="form-control"
+                                placeholder="e.g., rajesh@vlsilks.com"
+                                value="{{ form_data.get('email', user.email) }}" required maxlength="100">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="password" class="form-label fw-semibold">New Password <span class="text-muted small fw-normal">(Leave blank to keep current)</span></label>
+                            <input type="password" id="password" name="password" class="form-control"
+                                placeholder="Enter only if changing password"
+                                minlength="6">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Roles & Permissions -->
+                <div class="mb-4">
+                    <h6 class="text-uppercase text-muted fw-semibold border-bottom pb-2 mb-3" style="letter-spacing:.06em; font-size:.75rem;">
+                        <i class="bi bi-shield-lock me-1"></i> Role & Access Level
+                    </h6>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Role <span class="text-danger">*</span></label>
+                            <div class="d-flex flex-column gap-2">
+                                <div class="form-check p-3 rounded border bg-light">
+                                    <input class="form-check-input" type="radio" name="role" id="roleStaff" value="STAFF"
+                                        {% if form_data.get('role', user.role) == 'STAFF' %}checked{% endif %}>
+                                    <label class="form-check-label fw-semibold" for="roleStaff">
+                                        <i class="bi bi-person me-1 text-primary"></i> Staff Member
+                                        <div class="text-muted small fw-normal">POS billing, stock lookup, customer and returns operations.</div>
+                                    </label>
+                                </div>
+                                <div class="form-check p-3 rounded border bg-light">
+                                    <input class="form-check-input" type="radio" name="role" id="roleAdmin" value="ADMIN"
+                                        {% if form_data.get('role', user.role) == 'ADMIN' %}checked{% endif %}>
+                                    <label class="form-check-label fw-semibold" for="roleAdmin">
+                                        <i class="bi bi-shield-lock-fill me-1 text-danger"></i> Administrator
+                                        <div class="text-muted small fw-normal">Full control over inventory, pricing, user management, and financial reports.</div>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Account Status <span class="text-danger">*</span></label>
+                            <div class="d-flex flex-column gap-2">
+                                <div class="form-check p-3 rounded border bg-light">
+                                    <input class="form-check-input" type="radio" name="status" id="statusActive" value="ACTIVE"
+                                        {% if form_data.get('status', user.status) == 'ACTIVE' %}checked{% endif %}>
+                                    <label class="form-check-label" for="statusActive">
+                                        <span class="vl-badge vl-badge-active"><i class="bi bi-check-circle-fill me-1"></i> Active</span>
+                                        <div class="text-muted small mt-1">User is active and allowed to log in.</div>
+                                    </label>
+                                </div>
+                                <div class="form-check p-3 rounded border bg-light">
+                                    <input class="form-check-input" type="radio" name="status" id="statusInactive" value="INACTIVE"
+                                        {% if form_data.get('status', user.status) == 'INACTIVE' %}checked{% endif %}>
+                                    <label class="form-check-label" for="statusInactive">
+                                        <span class="vl-badge bg-secondary text-white"><i class="bi bi-dash-circle-fill me-1"></i> Inactive</span>
+                                        <div class="text-muted small mt-1">User is disabled and blocked from logging in.</div>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Form Submit -->
+                <div class="d-flex gap-2 pt-3 border-top">
+                    <button type="submit" class="vl-btn-maroon">
+                        <i class="bi bi-floppy-fill"></i> Save Changes
+                    </button>
+                    <a href="{{ url_for('users.index') }}" class="btn btn-outline-secondary">
+                        Cancel
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

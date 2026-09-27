@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+
+{% block title %}Purchase History – {{ customer.customer_name }} – VL Silks{% endblock %}
+{% block header_title %}Customer Purchase History{% endblock %}
+
+{% block content %}
+<div class="vl-card mb-4">
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
+        <div class="d-flex align-items-center gap-3">
+            <div class="rounded-circle bg-danger bg-opacity-10 text-danger d-flex align-items-center justify-content-center fw-bold fs-4"
+                 style="width: 48px; height: 48px; border: 2px solid rgba(139, 0, 0, 0.2);">
+                {{ customer.customer_name[0] | upper }}
+            </div>
+            <div>
+                <h2 class="h5 brand-font mb-0">{{ customer.customer_name }}</h2>
+                <span class="text-muted small">Phone: {{ customer.phone }} | Total Purchases: {{ customer.total_purchases }} invoice(s)</span>
+            </div>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{{ url_for('customers.view', customer_id=customer.customer_id) }}" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-person me-1"></i> Customer Profile
+            </a>
+            <a href="{{ url_for('customers.index') }}" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-people me-1"></i> Customer Directory
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="vl-card">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h3 class="h6 brand-font mb-0"><i class="bi bi-receipt-cutoff me-2 text-danger"></i> Complete Invoice History</h3>
+        {% if customer.status == 'ACTIVE' %}
+        <a href="{{ url_for('sales.new') }}" class="vl-btn-maroon btn-sm">
+            <i class="bi bi-plus-circle me-1"></i> Create Sale (POS)
+        </a>
+        {% endif %}
+    </div>
+
+    <div class="table-responsive">
+        <table class="vl-table">
+            <thead>
+                <tr>
+                    <th>Invoice Number</th>
+                    <th>Date</th>
+                    <th>Subtotal</th>
+                    <th>Discount</th>
+                    <th>Tax</th>
+                    <th class="text-end">Total Amount</th>
+                    <th class="text-end">Paid Amount</th>
+                    <th class="text-end">Balance Amount</th>
+                    <th>Payment Status</th>
+                    <th>Method</th>
+                    <th>Billed By</th>
+                    <th class="text-end">Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if purchases %}
+                    {% for p in purchases %}
+                    <tr>
+                        <td>
+                            <a href="{{ url_for('sales.view', sale_id=p.sale_id) }}" class="fw-bold text-dark text-decoration-none hover-maroon">
+                                {{ p.invoice_number }}
+                            </a>
+                            <div class="text-muted small">{{ p.item_count }} item(s), {{ p.total_quantity }} qty</div>
+                        </td>
+                        <td class="small">{{ p.sale_date }}</td>
+                        <td class="small">{{ p.subtotal | currency }}</td>
+                        <td class="small text-danger">{{ p.discount | currency }}</td>
+                        <td class="small">{{ p.tax | currency }}</td>
+                        <td class="text-end fw-semibold text-dark">{{ p.total_amount | currency }}</td>
+                        <td class="text-end text-success fw-semibold">{{ p.paid_amount | currency }}</td>
+                        <td class="text-end">
+                            {% if p.balance_amount > 0 %}
+                                <span class="text-danger fw-bold">{{ p.balance_amount | currency }}</span>
+                            {% else %}
+                                <span class="text-muted small">₹0.00</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if p.payment_status == 'PAID' %}
+                                <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 px-2 py-1">PAID</span>
+                            {% elif p.payment_status == 'PARTIAL' %}
+                                <span class="badge bg-warning bg-opacity-10 text-dark border border-warning border-opacity-25 px-2 py-1">PARTIAL</span>
+                            {% else %}
+                                <span class="badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25 px-2 py-1">CREDIT</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="badge bg-light text-dark border">{{ p.payment_method }}</span>
+                        </td>
+                        <td class="small text-muted">{{ p.created_by_name }}</td>
+                        <td class="text-end">
+                            <a href="{{ url_for('sales.view', sale_id=p.sale_id) }}" class="btn btn-outline-primary btn-sm" title="View Full Bill">
+                                <i class="bi bi-eye"></i> View
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr>
+                        <td colspan="12" class="text-center py-5 text-muted">
+                            <i class="bi bi-bag-x fs-2 d-block mb-2 text-secondary"></i>
+                            <div class="fw-semibold">No purchases found for this customer.</div>
+                        </td>
+                    </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

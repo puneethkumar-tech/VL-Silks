@@ -1,0 +1,659 @@
+{% extends 'base.html' %}
+
+{% block title %}New Sale – POS{% endblock %}
+{% block header_title %}New Sale – Point of Sale{% endblock %}
+
+{% block extra_css %}
+<style>
+  .pos-variant-row { background: #fff; transition: background .15s; }
+  .pos-variant-row:hover { background: #fff8f0; }
+  #posItemsTable td { vertical-align: middle; }
+  .qty-btn { width: 28px; height: 28px; padding: 0; font-size: .9rem; }
+  #posSearch { border: 2px solid var(--vl-maroon); border-radius: 8px; }
+  .variant-card { cursor: pointer; border: 2px solid transparent; transition: border .15s, box-shadow .15s; }
+  .variant-card:hover { border-color: var(--vl-maroon); box-shadow: 0 2px 8px rgba(139,0,0,.15); }
+  .variant-card.in-cart { border-color: var(--vl-gold); background: #fffbee; }
+  #cartSection .table thead th { background: var(--vl-maroon); color: #fff; }
+  .summary-label { font-size: .85rem; color: #666; }
+  .summary-value { font-size: .95rem; font-weight: 600; }
+
+  /* ── Save Sale Button ── */
+  #submitSaleBtn {
+    position: relative;
+    font-size: 1.05rem;
+    letter-spacing: .03em;
+    border: none;
+    border-radius: 10px;
+    padding: .75rem 1rem;
+    transition: background .2s, box-shadow .2s, transform .1s, opacity .2s;
+    cursor: not-allowed;
+    /* Disabled state by default (cart empty on load) */
+    background: #c8c8c8;
+    color: #888;
+    box-shadow: none;
+  }
+  #submitSaleBtn:not([disabled]) {
+    background: linear-gradient(135deg, #8B0000 0%, #B22222 50%, #8B0000 100%);
+    color: #fff;
+    box-shadow: 0 4px 14px rgba(139,0,0,.45), inset 0 1px 0 rgba(255,255,255,.15);
+    cursor: pointer;
+  }
+  #submitSaleBtn:not([disabled]):hover {
+    background: linear-gradient(135deg, #700000 0%, #9B1111 50%, #700000 100%);
+    box-shadow: 0 6px 20px rgba(139,0,0,.55), inset 0 1px 0 rgba(255,255,255,.15);
+    transform: translateY(-1px);
+  }
+  #submitSaleBtn:not([disabled]):active {
+    transform: translateY(0);
+    box-shadow: 0 2px 8px rgba(139,0,0,.4);
+  }
+  /* Gold shimmer strip on enabled state */
+  #submitSaleBtn:not([disabled])::after {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    border-radius: 10px 10px 0 0;
+    background: linear-gradient(90deg, transparent, #D4AF37, transparent);
+    opacity: .8;
+  }
+  #submitSaleBtn[disabled] {
+    opacity: 1; /* Override Bootstrap; we control colour ourselves */
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4 py-4">
+<form method="POST" action="{{ url_for('sales.new') }}" id="posForm">
+
+  <div class="row g-4">
+
+    <!-- ── LEFT: Product Search & Cart ── -->
+    <div class="col-lg-8">
+
+      <!-- Search Bar -->
+      <div class="card border-0 shadow-sm mb-3">
+        <div class="card-body py-3">
+          <div class="d-flex align-items-center gap-2">
+            <i class="bi bi-search fs-5 text-danger"></i>
+            <input type="text" id="posSearch" class="form-control form-control-lg"
+                   placeholder="Search by product name, SKU, barcode, brand, size, color…"
+                   autocomplete="off">
+            <span class="text-muted small text-nowrap">{{ variants | length }} variants in stock</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Product Grid -->
+      <div class="card border-0 shadow-sm mb-3">
+        <div class="card-body p-2">
+          <div id="variantGrid" class="row g-2" style="max-height:340px;overflow-y:auto;">
+            {% for v in variants %}
+            <div class="col-6 col-md-4 col-lg-3 variant-grid-item"
+                 data-search="{{ v.product_name | lower }} {{ v.sku | lower }} {{ v.color | lower }} {{ v.size | lower }} {{ v.brand | lower }} {{ v.barcode or '' | lower }}">
+              <div class="variant-card card border p-2 text-center small h-100"
+                   onclick="addToCart({{ v.variant_id }})"
+                   data-variant-id="{{ v.variant_id }}"
+                   title="{{ v.product_name }} | {{ v.size }} | {{ v.color }}">
+                <div class="fw-semibold" style="font-size:.78rem;line-height:1.2;color:var(--vl-maroon);">
+                  {{ v.product_name[:28] }}{% if v.product_name | length > 28 %}…{% endif %}
+                </div>
+                <div class="text-muted mt-1" style="font-size:.72rem;">{{ v.sku }}</div>
+                <div class="text-muted" style="font-size:.72rem;">{{ v.size }} / {{ v.color[:14] }}</div>
+                <div class="fw-bold mt-1" style="color:var(--vl-maroon);">₹{{ "%.0f" | format(v.selling_price) }}</div>
+                <div class="mt-1">
+                  <span class="badge {% if v.stock_quantity <= 5 %}bg-warning text-dark{% else %}bg-success{% endif %}" style="font-size:.65rem;">
+                    {{ v.stock_quantity }} in stock
+                  </span>
+                </div>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+
+      <!-- Cart / Line Items -->
+      <div class="card border-0 shadow-sm" id="cartSection">
+        <div class="card-header bg-white d-flex justify-content-between align-items-center py-2">
+          <h6 class="mb-0 fw-bold"><i class="bi bi-cart-fill text-danger me-1"></i>Cart</h6>
+          <span id="cartCount" class="badge bg-danger">0 items</span>
+        </div>
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table mb-0 align-middle" id="posItemsTable">
+              <thead>
+                <tr>
+                  <th class="px-3">#</th>
+                  <th>Product / SKU</th>
+                  <th class="text-center">Qty</th>
+                  <th class="text-end">Unit Price</th>
+                  <th class="text-end">Discount</th>
+                  <th class="text-end">Line Total</th>
+                  <th class="text-center">Remove</th>
+                </tr>
+              </thead>
+              <tbody id="posItemsTbody">
+                <tr id="emptyCartRow">
+                  <td colspan="7" class="text-center text-muted py-4">
+                    <i class="bi bi-cart-x fs-3 d-block mb-1"></i>
+                    Click products above to add to cart
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /col-lg-8 -->
+
+    <!-- ── RIGHT: Bill Summary & Payment ── -->
+    <div class="col-lg-4">
+
+      <!-- Customer -->
+      <div class="card border-0 shadow-sm mb-3">
+        <div class="card-header bg-white py-2">
+          <h6 class="mb-0 fw-bold"><i class="bi bi-person-fill text-danger me-1"></i>Customer</h6>
+        </div>
+        <div class="card-body py-3">
+          <select name="customer_id" id="customerSelect" class="form-select form-select-sm mb-2">
+            <option value="">— Walk-in Customer (No Credit) —</option>
+            {% for c in customers %}
+            <option value="{{ c.customer_id }}"
+              {% if form_data.get('customer_id') == c.customer_id | string %}selected{% endif %}>
+              {{ c.customer_name }} ({{ c.phone }})
+            </option>
+            {% endfor %}
+          </select>
+          <div class="small text-muted">
+            <i class="bi bi-info-circle me-1"></i>
+            Required for CREDIT &amp; SPLIT payment methods.
+          </div>
+        </div>
+      </div>
+
+      <!-- Payment -->
+      <div class="card border-0 shadow-sm mb-3">
+        <div class="card-header bg-white py-2">
+          <h6 class="mb-0 fw-bold"><i class="bi bi-credit-card-fill text-danger me-1"></i>Payment</h6>
+        </div>
+        <div class="card-body py-3">
+
+          <div class="mb-2">
+            <label class="form-label small fw-semibold mb-1">Sale Date</label>
+            <input type="date" name="sale_date" id="saleDateInput" class="form-control form-control-sm"
+                   value="{{ form_data.get('sale_date', today_date) }}" required>
+          </div>
+
+          <div class="mb-2">
+            <label class="form-label small fw-semibold mb-1">Payment Method</label>
+            <div class="d-flex flex-wrap gap-2" id="payMethodBtns">
+              {% for pm in ['CASH','UPI','CARD','CREDIT','SPLIT'] %}
+              <button type="button" class="btn btn-sm pay-method-btn {% if form_data.get('payment_method','CASH') == pm %}btn-danger{% else %}btn-outline-secondary{% endif %}"
+                      data-method="{{ pm }}" onclick="selectPayMethod('{{ pm }}')">
+                {{ pm }}
+              </button>
+              {% endfor %}
+            </div>
+            <input type="hidden" name="payment_method" id="payMethodInput" value="{{ form_data.get('payment_method','CASH') }}">
+          </div>
+
+          <div class="row g-2 mb-2">
+            <div class="col-6">
+              <label class="form-label small fw-semibold mb-1">Invoice Discount (₹)</label>
+              <input type="number" name="discount" id="headerDiscount"
+                     class="form-control form-control-sm text-end" min="0" step="0.01"
+                     value="{{ form_data.get('discount', '0.00') }}" oninput="recalcTotals()">
+            </div>
+            <div class="col-6">
+              <label class="form-label small fw-semibold mb-1">Tax / GST (₹)</label>
+              <input type="number" name="tax" id="headerTax"
+                     class="form-control form-control-sm text-end" min="0" step="0.01"
+                     value="{{ form_data.get('tax', '0.00') }}" oninput="recalcTotals()">
+            </div>
+          </div>
+
+          <!-- Summary -->
+          <div class="bg-light rounded p-3 mb-3" id="billSummary">
+            <div class="d-flex justify-content-between mb-1">
+              <span class="summary-label">Subtotal</span>
+              <span class="summary-value" id="dispSubtotal">₹0.00</span>
+            </div>
+            <div class="d-flex justify-content-between mb-1">
+              <span class="summary-label">Discount</span>
+              <span class="summary-value text-success" id="dispDiscount">– ₹0.00</span>
+            </div>
+            <div class="d-flex justify-content-between mb-1">
+              <span class="summary-label">Tax / GST</span>
+              <span class="summary-value" id="dispTax">+ ₹0.00</span>
+            </div>
+            <hr class="my-2">
+            <div class="d-flex justify-content-between">
+              <span class="fw-bold">Grand Total</span>
+              <span class="fw-bold fs-5" id="dispGrandTotal" style="color:var(--vl-maroon);">₹0.00</span>
+            </div>
+          </div>
+
+          <!-- Paid Amount (shown only for SPLIT/PARTIAL) -->
+          <div class="mb-2" id="paidAmountSection" style="display:none;">
+            <label class="form-label small fw-semibold mb-1">Amount Paid Now (₹)</label>
+            <input type="number" name="paid_amount" id="paidAmountInput"
+                   class="form-control form-control-sm text-end" min="0" step="0.01"
+                   placeholder="Enter amount paid" oninput="recalcBalance()">
+            <div class="d-flex justify-content-between mt-1">
+              <span class="small text-muted">Balance</span>
+              <span class="small fw-bold text-danger" id="dispBalance">₹0.00</span>
+            </div>
+          </div>
+
+          <div class="mb-2">
+            <label class="form-label small fw-semibold mb-1">Notes (optional)</label>
+            <textarea name="notes" class="form-control form-control-sm" rows="2"
+                      placeholder="Remarks, reference…">{{ form_data.get('notes', '') }}</textarea>
+          </div>
+
+        </div>
+      </div><!-- /Payment card -->
+
+      <!-- Submit -->
+      <button type="submit" id="submitSaleBtn" class="btn btn-lg w-100 fw-bold"
+              disabled aria-disabled="true">
+        <i class="bi bi-receipt-cutoff me-1"></i> Save Sale &amp; Print Invoice
+      </button>
+      <a href="{{ url_for('sales.index') }}" class="btn btn-outline-secondary w-100 mt-2">
+        <i class="bi bi-x-circle me-1"></i> Cancel
+      </a>
+
+    </div><!-- /col-lg-4 -->
+
+  </div><!-- /row -->
+
+</form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// ── State ──
+// cart: variant_id (string key) → { sku, label, qty, unit_price, item_discount }
+// Stock is ALWAYS read from VARIANTS[vid] — never stored on cart items.
+const cart = {};
+
+const VARIANTS = {
+  {% for v in variants %}
+  "{{ v.variant_id }}": {
+    id:            {{ v.variant_id }},
+    sku:           {{ v.sku | tojson }},
+    label:         {{ (v.product_name ~ ' – ' ~ v.size ~ ' / ' ~ v.color) | tojson }},
+    selling_price: {{ v.selling_price }},
+    stock:         {{ v.stock_quantity | int }},
+    barcode:       {{ (v.barcode or '') | tojson }},
+  },
+  {% endfor %}
+};
+
+// ── Helpers ──
+function getStock(vid) {
+  const v = VARIANTS[String(vid)];
+  if (!v) return 0;
+  const s = Number(v.stock);
+  return Number.isFinite(s) && s >= 0 ? Math.floor(s) : 0;
+}
+
+function getQty(vid) {
+  const item = cart[String(vid)];
+  if (!item) return 0;
+  const q = Number(item.qty);
+  return Number.isFinite(q) && q >= 1 ? Math.floor(q) : 1;
+}
+
+function escHtml(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+// ── Product Search & Filter ──
+document.getElementById('posSearch').addEventListener('input', function () {
+  const q = this.value.toLowerCase().trim();
+  document.querySelectorAll('.variant-grid-item').forEach(el => {
+    el.style.display = (!q || el.dataset.search.includes(q)) ? '' : 'none';
+  });
+});
+
+// ── Barcode / SKU Enter-key lookup ──
+document.getElementById('posSearch').addEventListener('keydown', function (e) {
+  if (e.key !== 'Enter') return;
+  e.preventDefault();
+  const q = this.value.trim().toLowerCase();
+  if (!q) return;
+  for (const vid in VARIANTS) {
+    const v = VARIANTS[vid];
+    if (v.sku.toLowerCase() === q || (v.barcode && v.barcode.toLowerCase() === q)) {
+      addToCart(v.id);
+      this.value = '';
+      document.querySelectorAll('.variant-grid-item').forEach(el => el.style.display = '');
+      return;
+    }
+  }
+});
+
+// ── Add to Cart ──
+function addToCart(variantId) {
+  const vid   = String(variantId);
+  const v     = VARIANTS[vid];
+  if (!v) return;
+
+  const maxStock = getStock(vid);
+  if (maxStock <= 0) {
+    if (window.vlAlert) {
+      window.vlAlert({
+        title: 'Out of Stock',
+        message: (v.sku || 'This item') + ' is currently out of stock.',
+        icon: '⚠️'
+      });
+    } else {
+      alert((v.sku || 'This item') + ' is currently out of stock.');
+    }
+    return;
+  }
+
+  if (cart[vid]) {
+    // Item already in cart — increment if possible
+    const currentQty = getQty(vid);
+    if (currentQty >= maxStock) {
+      if (window.vlAlert) {
+        window.vlAlert({
+          title: 'Cannot add more',
+          message: 'Only ' + maxStock + ' units of ' + (v.sku || 'this item') + ' are currently available.',
+          icon: '⚠️'
+        });
+      } else {
+        alert('Cannot add more — only ' + maxStock + ' units of ' + (v.sku || 'this item') + ' are currently available.');
+      }
+      return;
+    }
+    cart[vid].qty = currentQty + 1;
+  } else {
+    // New item
+    cart[vid] = {
+      sku:           v.sku,
+      label:         v.label,
+      qty:           1,
+      unit_price:    Number(v.selling_price) || 0,
+      item_discount: 0,
+    };
+  }
+
+  renderCart();
+  markVariantCard(variantId, true);
+}
+
+function removeFromCart(variantId) {
+  delete cart[String(variantId)];
+  markVariantCard(variantId, false);
+  renderCart();
+}
+
+function markVariantCard(variantId, inCart) {
+  const card = document.querySelector('[data-variant-id="' + variantId + '"]');
+  if (!card) return;
+  const parent = card.closest ? card.closest('.variant-card') : null;
+  if (parent) {
+    inCart ? parent.classList.add('in-cart') : parent.classList.remove('in-cart');
+  }
+}
+
+// ── Change Quantity from +/- buttons ──
+function changeQty(variantId, delta) {
+  const vid      = String(variantId);
+  const item     = cart[vid];
+  if (!item) return;
+
+  const v          = VARIANTS[vid];
+  const currentQty = getQty(vid);                  // guaranteed integer >= 1
+  const deltaNum   = Number.isFinite(Number(delta)) ? Math.round(Number(delta)) : 0;
+  const maxStock   = getStock(vid);                // reads VARIANTS — always authoritative
+  const newQty     = currentQty + deltaNum;
+
+  if (newQty < 1) return;                          // never go below 1
+  if (newQty > maxStock) {
+    const skuName = (v && v.sku) || item.sku || 'this item';
+    if (window.vlAlert) {
+      window.vlAlert({
+        title: 'Cannot add more',
+        message: 'Only ' + maxStock + ' units of ' + skuName + ' are currently available.',
+        icon: '⚠️'
+      });
+    } else {
+      alert('Cannot add more — only ' + maxStock + ' units of ' + skuName + ' are currently available.');
+    }
+    return;
+  }
+
+  item.qty = newQty;
+  renderCart();
+}
+
+// ── Manual quantity-input change ──
+function updateQty(variantId, val) {
+  const vid  = String(variantId);
+  const item = cart[vid];
+  if (!item) return;
+
+  const v        = VARIANTS[vid];
+  const maxStock = getStock(vid);
+  let qty = Math.floor(Number(val));
+  if (!Number.isFinite(qty) || qty < 1) qty = 1;
+  if (qty > maxStock) {
+    const skuName = (v && v.sku) || item.sku || 'this item';
+    if (window.vlAlert) {
+      window.vlAlert({
+        title: 'Cannot exceed stock',
+        message: 'Only ' + maxStock + ' units of ' + skuName + ' are currently available.',
+        icon: '⚠️'
+      });
+    } else {
+      alert('Cannot exceed available stock — only ' + maxStock + ' units of ' + skuName + ' are currently available.');
+    }
+    qty = maxStock;
+  }
+  item.qty = qty;
+  renderCart();
+}
+
+function updatePrice(variantId, val) {
+  const vid = String(variantId);
+  if (cart[vid]) {
+    cart[vid].unit_price = Math.max(0, Number(val) || 0);
+    renderCart();
+  }
+}
+
+function updateItemDiscount(variantId, val) {
+  const vid = String(variantId);
+  if (cart[vid]) {
+    cart[vid].item_discount = Math.max(0, Number(val) || 0);
+    renderCart();
+  }
+}
+
+// ── Render Cart Table ──
+function renderCart() {
+  const tbody = document.getElementById('posItemsTbody');
+  if (!tbody) return;
+  const keys = Object.keys(cart);
+
+  if (keys.length === 0) {
+    tbody.innerHTML = `
+      <tr id="emptyCartRow">
+        <td colspan="7" class="text-center text-muted py-4">
+          <i class="bi bi-cart-x fs-3 d-block mb-1"></i>
+          Click products above to add to cart
+        </td>
+      </tr>
+    `;
+    const submitBtn = document.getElementById('submitSaleBtn');
+    if (submitBtn) { submitBtn.disabled = true; submitBtn.setAttribute('aria-disabled','true'); }
+    const countEl = document.getElementById('cartCount');
+    if (countEl) countEl.textContent = '0 items';
+    recalcTotals();
+    return;
+  }
+
+  tbody.innerHTML = '';
+
+  keys.forEach((vid, idx) => {
+    const item      = cart[vid];
+    const qty       = getQty(vid);
+    const maxStock  = getStock(vid);
+    const unitPrice = Number(item.unit_price) || 0;
+    const discount  = Number(item.item_discount) || 0;
+    const lineTotal = (qty * unitPrice - discount).toFixed(2);
+
+    const tr = document.createElement('tr');
+    tr.className = 'pos-variant-row';
+    tr.innerHTML = `
+      <td class="px-3 text-muted small">${idx + 1}</td>
+      <td>
+        <div class="fw-semibold small">${escHtml(item.label)}</div>
+        <div class="text-muted" style="font-size:.72rem;">${escHtml(item.sku)}</div>
+        <input type="hidden" name="variant_id[]" value="${vid}">
+      </td>
+      <td class="text-center">
+        <div class="d-flex align-items-center justify-content-center gap-1">
+          <button type="button" class="btn btn-outline-secondary qty-btn"
+                  onclick="changeQty('${vid}', -1)" title="Decrease Quantity">–</button>
+          <input type="number" name="quantity[]" value="${qty}" min="1" max="${maxStock}"
+                 class="form-control form-control-sm text-center" style="width:52px;"
+                 onchange="updateQty('${vid}', this.value)">
+          <button type="button" class="btn btn-outline-secondary qty-btn"
+                  onclick="changeQty('${vid}', 1)" title="Increase Quantity">+</button>
+        </div>
+      </td>
+      <td class="text-end">
+        <input type="number" name="unit_price[]" value="${unitPrice.toFixed(2)}" min="0" step="0.01"
+               class="form-control form-control-sm text-end" style="width:90px;"
+               onchange="updatePrice('${vid}', this.value)">
+      </td>
+      <td class="text-end">
+        <input type="number" name="item_discount[]" value="${discount.toFixed(2)}" min="0" step="0.01"
+               class="form-control form-control-sm text-end" style="width:80px;"
+               onchange="updateItemDiscount('${vid}', this.value)">
+      </td>
+      <td class="text-end fw-semibold">₹${lineTotal}</td>
+      <td class="text-center">
+        <button type="button" class="btn btn-sm btn-outline-danger"
+                onclick="removeFromCart('${vid}')" title="Remove item">
+          <i class="bi bi-trash"></i>
+        </button>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  const countEl = document.getElementById('cartCount');
+  if (countEl) countEl.textContent = keys.length + ' item' + (keys.length > 1 ? 's' : '');
+  const submitBtn = document.getElementById('submitSaleBtn');
+  if (submitBtn) { submitBtn.disabled = false; submitBtn.removeAttribute('aria-disabled'); }
+  recalcTotals();
+}
+
+// ── Totals ──
+function getCartSubtotal() {
+  return Object.keys(cart).reduce((sum, vid) => {
+    const item = cart[vid];
+    const q = getQty(vid);
+    const p = Number(item.unit_price) || 0;
+    const d = Number(item.item_discount) || 0;
+    return sum + (q * p - d);
+  }, 0);
+}
+
+function recalcTotals() {
+  const sub   = getCartSubtotal();
+  const disc  = Number(document.getElementById('headerDiscount').value) || 0;
+  const tax   = Number(document.getElementById('headerTax').value) || 0;
+  const grand = Math.max(0, sub - disc + tax);
+
+  document.getElementById('dispSubtotal').textContent  = '₹' + sub.toFixed(2);
+  document.getElementById('dispDiscount').textContent  = '– ₹' + disc.toFixed(2);
+  document.getElementById('dispTax').textContent       = '+ ₹' + tax.toFixed(2);
+  document.getElementById('dispGrandTotal').textContent = '₹' + grand.toFixed(2);
+
+  recalcBalance();
+}
+
+function recalcBalance() {
+  const grand = Number(document.getElementById('dispGrandTotal').textContent.replace('₹', '')) || 0;
+  const paid  = Number(document.getElementById('paidAmountInput').value) || 0;
+  const bal   = Math.max(0, grand - paid);
+  document.getElementById('dispBalance').textContent = '₹' + bal.toFixed(2);
+}
+
+// ── Payment Method Toggle ──
+function selectPayMethod(method) {
+  document.getElementById('payMethodInput').value = method;
+  document.querySelectorAll('.pay-method-btn').forEach(btn => {
+    btn.className = 'btn btn-sm pay-method-btn ' +
+      (btn.dataset.method === method ? 'btn-danger' : 'btn-outline-secondary');
+  });
+  const showPaid = (method === 'SPLIT');
+  document.getElementById('paidAmountSection').style.display = showPaid ? '' : 'none';
+  if (!showPaid) {
+    document.getElementById('paidAmountInput').value = '';
+    document.getElementById('dispBalance').textContent = '₹0.00';
+  }
+}
+
+// ── Pre-populate cart on server-side validation error ──
+{% if items_data and items_data | length > 0 %}
+  {% for itm in items_data %}
+    (function () {
+      const vid = String({{ itm.variant_id }});
+      const v   = VARIANTS[vid];
+      if (v) {
+        cart[vid] = {
+          sku:           v.sku,
+          label:         v.label,
+          qty:           Math.max(1, Math.floor(Number({{ itm.quantity }}) || 1)),
+          unit_price:    Number({{ itm.unit_price }}) || v.selling_price,
+          item_discount: Number({{ itm.item_discount or '0.00' }}) || 0,
+        };
+        markVariantCard({{ itm.variant_id }}, true);
+      }
+    }());
+  {% endfor %}
+{% endif %}
+
+// ── Init ──
+selectPayMethod('{{ form_data.get("payment_method", "CASH") }}');
+renderCart();
+
+document.getElementById('posForm').addEventListener('submit', function (e) {
+  if (Object.keys(cart).length === 0) {
+    e.preventDefault();
+    if (window.vlAlert) {
+      window.vlAlert({
+        title: 'Empty Cart',
+        message: 'Please add at least one product to the cart before saving the sale.',
+        icon: '⚠️'
+      });
+    } else {
+      alert('Please add at least one product to the cart before saving the sale.');
+    }
+    return;
+  }
+  // Anti-double-submit: disable button immediately after first valid submit
+  const btn = document.getElementById('submitSaleBtn');
+  btn.disabled = true;
+  btn.setAttribute('aria-disabled', 'true');
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Saving…';
+});
+</script>
+{% endblock %}

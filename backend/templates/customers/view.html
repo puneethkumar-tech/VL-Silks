@@ -1,0 +1,245 @@
+{% extends "base.html" %}
+
+{% block title %}{{ customer.customer_name }} – Customer Profile – VL Silks{% endblock %}
+{% block header_title %}Customer Profile{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+    <!-- Customer Info Card -->
+    <div class="col-lg-4">
+        <div class="vl-card h-100">
+            <div class="d-flex justify-content-between align-items-start mb-3">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="rounded-circle bg-danger bg-opacity-10 text-danger d-flex align-items-center justify-content-center fw-bold fs-4"
+                         style="width: 56px; height: 56px; border: 2px solid rgba(139, 0, 0, 0.2);">
+                        {{ customer.customer_name[0] | upper }}
+                    </div>
+                    <div>
+                        <h2 class="h5 brand-font mb-0 text-dark">{{ customer.customer_name }}</h2>
+                        <span class="text-muted small">Customer ID: #{{ customer.customer_id }}</span>
+                    </div>
+                </div>
+                <div>
+                    {% if customer.status == 'ACTIVE' %}
+                        <span class="vl-badge vl-badge-active"><i class="bi bi-check-circle-fill me-1"></i> Active</span>
+                    {% else %}
+                        <span class="vl-badge bg-secondary text-white"><i class="bi bi-dash-circle-fill me-1"></i> Inactive</span>
+                    {% endif %}
+                </div>
+            </div>
+
+            <hr class="my-3">
+
+            <div class="mb-3">
+                <label class="text-muted small fw-semibold d-block text-uppercase">Phone Number</label>
+                <div class="fw-semibold text-dark fs-6">
+                    <i class="bi bi-telephone-fill text-danger me-2"></i>{{ customer.phone }}
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label class="text-muted small fw-semibold d-block text-uppercase">Email Address</label>
+                <div class="text-dark">
+                    {% if customer.email %}
+                        <i class="bi bi-envelope-fill text-muted me-2"></i>{{ customer.email }}
+                    {% else %}
+                        <span class="text-muted small">— Not provided —</span>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label class="text-muted small fw-semibold d-block text-uppercase">Postal / Delivery Address</label>
+                <div class="text-dark small">
+                    {% if customer.address %}
+                        <i class="bi bi-geo-alt-fill text-danger me-1"></i>{{ customer.address }}
+                    {% else %}
+                        <span class="text-muted">— No address recorded —</span>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label class="text-muted small fw-semibold d-block text-uppercase">Credit Limit & Available</label>
+                <div class="d-flex justify-content-between align-items-center bg-light p-2 rounded border">
+                    <div>
+                        <div class="small text-muted">Credit Limit:</div>
+                        <div class="fw-bold">{{ customer.credit_limit | currency }}</div>
+                    </div>
+                    <div class="text-end">
+                        <div class="small text-muted">Available:</div>
+                        <div class="fw-bold text-success">{{ customer.available_credit | currency }}</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mb-4">
+                <label class="text-muted small fw-semibold d-block text-uppercase">Member Since</label>
+                <div class="small text-muted">
+                    <i class="bi bi-calendar3 me-1"></i>{{ customer.created_at }}
+                </div>
+            </div>
+
+            <div class="d-grid gap-2">
+                <a href="{{ url_for('credit.view', customer_id=customer.customer_id) }}" class="vl-btn-gold text-center text-dark text-decoration-none py-2">
+                    <i class="bi bi-journal-bookmark-fill me-1"></i> View Credit Ledger
+                </a>
+                <a href="{{ url_for('pdf.web_download_credit_statement', customer_id=customer.customer_id) }}" target="_blank" class="btn btn-outline-danger btn-sm py-2">
+                    <i class="bi bi-file-earmark-pdf-fill me-1"></i> Download Credit Statement (PDF)
+                </a>
+                {% if session.get('user_role') == 'ADMIN' %}
+                <a href="{{ url_for('customers.edit', customer_id=customer.customer_id) }}" class="btn btn-outline-secondary">
+                    <i class="bi bi-pencil me-1"></i> Edit Profile
+                </a>
+                <form action="{{ url_for('customers.toggle_status', customer_id=customer.customer_id) }}" method="POST" class="d-grid">
+                    <button type="submit" class="btn btn-outline-{{ 'danger' if customer.status == 'ACTIVE' else 'success' }} btn-sm"
+                            data-vl-confirm
+                            data-vl-title="Change Customer Status"
+                            data-vl-message="Are you sure you want to {{ 'deactivate' if customer.status == 'ACTIVE' else 'activate' }} {{ customer.customer_name }}? Historical sales will remain intact."
+                            data-vl-icon="{{ '⚠️' if customer.status == 'ACTIVE' else '✅' }}"
+                            data-vl-confirm-text="{{ 'Deactivate Account' if customer.status == 'ACTIVE' else 'Activate Account' }}"
+                            data-vl-confirm-class="{{ 'vl-confirm-danger' if customer.status == 'ACTIVE' else 'vl-confirm-success' }}">
+                        <i class="bi bi-power me-1"></i> {{ 'Deactivate Account' if customer.status == 'ACTIVE' else 'Activate Account' }}
+                    </button>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Purchase Summary & History -->
+    <div class="col-lg-8">
+        <!-- Purchase Metric Cards -->
+        <div class="row g-3 mb-4">
+            <div class="col-sm-6 col-md-3">
+                <div class="vl-stat-card h-100 p-3">
+                    <div class="vl-stat-header mb-1">
+                        <span class="vl-stat-title" style="font-size: 0.75rem;">Invoices</span>
+                        <i class="bi bi-receipt text-danger"></i>
+                    </div>
+                    <div class="vl-stat-value fs-4">{{ customer.total_purchases }}</div>
+                    <div class="vl-stat-subtext" style="font-size: 0.7rem;">Completed sales</div>
+                </div>
+            </div>
+            <div class="col-sm-6 col-md-3">
+                <div class="vl-stat-card h-100 p-3">
+                    <div class="vl-stat-header mb-1">
+                        <span class="vl-stat-title" style="font-size: 0.75rem;">Total Value</span>
+                        <i class="bi bi-bag-check text-dark"></i>
+                    </div>
+                    <div class="vl-stat-value fs-4">{{ customer.total_purchase_value | currency }}</div>
+                    <div class="vl-stat-subtext" style="font-size: 0.7rem;">Gross purchases</div>
+                </div>
+            </div>
+            <div class="col-sm-6 col-md-3">
+                <div class="vl-stat-card h-100 p-3">
+                    <div class="vl-stat-header mb-1">
+                        <span class="vl-stat-title" style="font-size: 0.75rem;">Total Paid</span>
+                        <i class="bi bi-check2-circle text-success"></i>
+                    </div>
+                    <div class="vl-stat-value fs-4 text-success">{{ customer.total_paid | currency }}</div>
+                    <div class="vl-stat-subtext" style="font-size: 0.7rem;">Settled payments</div>
+                </div>
+            </div>
+            <div class="col-sm-6 col-md-3">
+                <div class="vl-stat-card h-100 p-3">
+                    <div class="vl-stat-header mb-1">
+                        <span class="vl-stat-title" style="font-size: 0.75rem;">Balance Due</span>
+                        <i class="bi bi-hourglass-split text-danger"></i>
+                    </div>
+                    <div class="vl-stat-value fs-4 {{ 'text-danger' if customer.outstanding_balance > 0 else 'text-muted' }}">
+                        {{ customer.outstanding_balance | currency }}
+                    </div>
+                    <div class="vl-stat-subtext" style="font-size: 0.7rem;">Outstanding Udhaar</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Purchase History Table Card -->
+        <div class="vl-card">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <div>
+                    <h3 class="h6 brand-font mb-1"><i class="bi bi-clock-history me-2 text-danger"></i> Purchase History</h3>
+                    <p class="text-muted small mb-0">List of sales invoices and garments purchased by this customer</p>
+                </div>
+                <div class="d-flex gap-2">
+                    {% if customer.status == 'ACTIVE' %}
+                    <a href="{{ url_for('sales.new') }}" class="vl-btn-maroon btn-sm py-1 px-3">
+                        <i class="bi bi-cart-plus me-1"></i> New Sale
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="table-responsive">
+                <table class="vl-table">
+                    <thead>
+                        <tr>
+                            <th>Invoice #</th>
+                            <th>Date</th>
+                            <th class="text-center">Items</th>
+                            <th class="text-end">Total</th>
+                            <th class="text-end">Paid</th>
+                            <th class="text-end">Balance</th>
+                            <th>Status</th>
+                            <th>Method</th>
+                            <th class="text-end">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if purchases %}
+                            {% for p in purchases %}
+                            <tr>
+                                <td>
+                                    <a href="{{ url_for('sales.view', sale_id=p.sale_id) }}" class="fw-bold text-decoration-none text-dark hover-maroon">
+                                        {{ p.invoice_number }}
+                                    </a>
+                                </td>
+                                <td class="small text-muted">{{ p.sale_date }}</td>
+                                <td class="text-center">
+                                    <span class="badge bg-light text-dark border">{{ p.item_count }} item(s) ({{ p.total_quantity }} qty)</span>
+                                </td>
+                                <td class="text-end fw-semibold text-dark">{{ p.total_amount | currency }}</td>
+                                <td class="text-end text-success fw-semibold">{{ p.paid_amount | currency }}</td>
+                                <td class="text-end">
+                                    {% if p.balance_amount > 0 %}
+                                        <span class="text-danger fw-semibold">{{ p.balance_amount | currency }}</span>
+                                    {% else %}
+                                        <span class="text-muted small">₹0.00</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if p.payment_status == 'PAID' %}
+                                        <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 px-2 py-1">PAID</span>
+                                    {% elif p.payment_status == 'PARTIAL' %}
+                                        <span class="badge bg-warning bg-opacity-10 text-dark border border-warning border-opacity-25 px-2 py-1">PARTIAL</span>
+                                    {% else %}
+                                        <span class="badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25 px-2 py-1">CREDIT</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span class="badge bg-light text-dark border">{{ p.payment_method }}</span>
+                                </td>
+                                <td class="text-end">
+                                    <a href="{{ url_for('sales.view', sale_id=p.sale_id) }}" class="btn btn-outline-primary btn-sm py-0 px-2" title="View Bill Invoice">
+                                        <i class="bi bi-receipt"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="9" class="text-center py-4 text-muted">
+                                    <i class="bi bi-bag-x fs-3 d-block mb-1 text-secondary"></i>
+                                    <div class="fw-semibold">No purchase history found.</div>
+                                    <div class="small">This customer has not made any purchases yet.</div>
+                                </td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,198 @@
+{% extends "base.html" %}
+
+{% block title %}Returns & Exchanges – VL Silks{% endblock %}
+{% block header_title %}Returns & Garment Exchanges{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+    <!-- Metric Stat Cards -->
+    <div class="col-12">
+        <div class="row g-3">
+            <div class="col-sm-6 col-xl-3">
+                <div class="vl-stat-card border-danger border-start border-4">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="vl-stat-label text-muted">Total Returns</div>
+                            <div class="vl-stat-value text-dark">{{ summary.total_returns_count }}</div>
+                            <div class="small text-muted mt-1">{{ summary.total_refunds_amount | currency }} refunded</div>
+                        </div>
+                        <div class="rounded-circle bg-danger bg-opacity-10 p-3 text-danger fs-3">
+                            <i class="bi bi-arrow-return-left"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-sm-6 col-xl-3">
+                <div class="vl-stat-card border-warning border-start border-4">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="vl-stat-label text-muted">Today's Returns</div>
+                            <div class="vl-stat-value text-dark">{{ summary.today_returns_count }}</div>
+                            <div class="small text-muted mt-1">{{ summary.today_refunds_amount | currency }} today</div>
+                        </div>
+                        <div class="rounded-circle bg-warning bg-opacity-10 p-3 text-warning fs-3">
+                            <i class="bi bi-calendar-event"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-sm-6 col-xl-3">
+                <div class="vl-stat-card border-info border-start border-4">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="vl-stat-label text-muted">Garment Exchanges</div>
+                            <div class="vl-stat-value text-dark">{{ summary.total_exchanges_count }}</div>
+                            <div class="small text-muted mt-1">Item swaps</div>
+                        </div>
+                        <div class="rounded-circle bg-info bg-opacity-10 p-3 text-info fs-3">
+                            <i class="bi bi-arrow-left-right"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-sm-6 col-xl-3">
+                <div class="vl-stat-card border-success border-start border-4">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="vl-stat-label text-muted">Credit Adjustments</div>
+                            <div class="vl-stat-value text-dark">{{ summary.total_credit_adjustments_count }}</div>
+                            <div class="small text-muted mt-1">Udhaar balance credited</div>
+                        </div>
+                        <div class="rounded-circle bg-success bg-opacity-10 p-3 text-success fs-3">
+                            <i class="bi bi-journal-check"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Returns List & Actions Card -->
+    <div class="col-12">
+        <div class="vl-card">
+            <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4 pb-3 border-bottom">
+                <div>
+                    <h2 class="h5 brand-font mb-1">Customer Returns & Exchanges Log</h2>
+                    <p class="text-muted small mb-0">Audit history of all garment returns, restock movements, and customer refunds</p>
+                </div>
+                <div>
+                    <a href="{{ url_for('returns.new') }}" class="btn btn-danger">
+                        <i class="bi bi-plus-circle me-1"></i> Process Return / Exchange
+                    </a>
+                </div>
+            </div>
+
+            <!-- Filter & Search Bar -->
+            <form method="GET" action="{{ url_for('returns.index') }}" class="row g-2 mb-4">
+                <div class="col-md-4">
+                    <div class="input-group input-group-sm">
+                        <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
+                        <input type="text" name="search" class="form-control" placeholder="Search by Invoice, Customer or Reason..." value="{{ current_search }}">
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <select name="refund_type" class="form-select form-select-sm">
+                        <option value="ALL" {% if current_refund_type == 'ALL' %}selected{% endif %}>All Types</option>
+                        <option value="CASH" {% if current_refund_type == 'CASH' %}selected{% endif %}>Cash Refund</option>
+                        <option value="CREDIT_ADJUSTMENT" {% if current_refund_type == 'CREDIT_ADJUSTMENT' %}selected{% endif %}>Credit / Udhaar</option>
+                        <option value="EXCHANGE" {% if current_refund_type == 'EXCHANGE' %}selected{% endif %}>Exchange</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <input type="date" name="date_from" class="form-control form-control-sm" value="{{ current_date_from }}" placeholder="From Date">
+                </div>
+                <div class="col-md-2">
+                    <input type="date" name="date_to" class="form-control form-control-sm" value="{{ current_date_to }}" placeholder="To Date">
+                </div>
+                <div class="col-md-2 d-flex gap-2">
+                    <button type="submit" class="btn btn-sm btn-outline-danger w-100">
+                        <i class="bi bi-funnel me-1"></i> Filter
+                    </button>
+                    {% if current_search or current_refund_type != 'ALL' or current_date_from or current_date_to %}
+                    <a href="{{ url_for('returns.index') }}" class="btn btn-sm btn-outline-secondary" title="Clear Filters">
+                        <i class="bi bi-x-circle"></i>
+                    </a>
+                    {% endif %}
+                </div>
+            </form>
+
+            <!-- Table -->
+            <div class="table-responsive">
+                <table class="vl-table">
+                    <thead>
+                        <tr>
+                            <th>Return Ref #</th>
+                            <th>Original Invoice</th>
+                            <th>Customer</th>
+                            <th>Return Date</th>
+                            <th class="text-center">Items</th>
+                            <th class="text-end">Refund Amount</th>
+                            <th>Refund Type</th>
+                            <th>Processed By</th>
+                            <th class="text-end">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if returns %}
+                            {% for r in returns %}
+                            <tr>
+                                <td>
+                                    <a href="{{ url_for('returns.view', return_id=r.return_id) }}" class="fw-bold text-decoration-none text-dark hover-maroon">
+                                        {{ r.return_reference }}
+                                    </a>
+                                </td>
+                                <td>
+                                    <a href="{{ url_for('sales.view', sale_id=r.sale_id) }}" class="badge bg-light text-dark border text-decoration-none">
+                                        {{ r.invoice_number }}
+                                    </a>
+                                </td>
+                                <td>
+                                    {% if r.customer_name %}
+                                        <div class="fw-semibold text-dark">{{ r.customer_name }}</div>
+                                        <div class="small text-muted">{{ r.customer_phone }}</div>
+                                    {% else %}
+                                        <span class="text-muted small">Walk-in Customer</span>
+                                    {% endif %}
+                                </td>
+                                <td class="small">{{ r.return_date }}</td>
+                                <td class="text-center">
+                                    <span class="badge bg-secondary">{{ r.total_quantity }} pcs ({{ r.item_count }} items)</span>
+                                </td>
+                                <td class="text-end fw-bold text-danger">
+                                    {{ r.total_refund_amount | currency }}
+                                </td>
+                                <td>
+                                    {% if r.refund_type == 'CASH' %}
+                                        <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 px-2 py-1">CASH REFUND</span>
+                                    {% elif r.refund_type == 'CREDIT_ADJUSTMENT' %}
+                                        <span class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 px-2 py-1">CREDIT ADJUSTMENT</span>
+                                    {% elif r.refund_type == 'EXCHANGE' %}
+                                        <span class="badge bg-warning bg-opacity-10 text-dark border border-warning border-opacity-50 px-2 py-1">EXCHANGE</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary text-white">{{ r.refund_type }}</span>
+                                    {% endif %}
+                                </td>
+                                <td class="small text-muted">{{ r.created_by_name }}</td>
+                                <td class="text-end">
+                                    <a href="{{ url_for('returns.view', return_id=r.return_id) }}" class="btn btn-sm btn-outline-secondary" title="View Details">
+                                        <i class="bi bi-eye me-1"></i> View
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="9" class="text-center py-5 text-muted">
+                                    <i class="bi bi-arrow-return-left fs-2 d-block mb-2 text-secondary"></i>
+                                    <div class="fw-semibold">No returns or exchanges found.</div>
+                                    <div class="small">Use the button above to process a customer garment return or exchange.</div>
+                                </td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

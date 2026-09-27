@@ -1,0 +1,124 @@
+﻿{% extends "base.html" %}
+{% block title %}Profit Report{% endblock %}
+{% block header_title %}Profit Report (Gross Margin){% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+
+  <div class="card shadow-sm border-0 mb-4" style="border-radius:12px;">
+    <div class="card-body p-3">
+      <form method="get" action="{{ url_for('reports.profit') }}" class="row g-2 align-items-end">
+        <div class="col-auto">
+          <label class="form-label fw-semibold small mb-1">From</label>
+          <input type="date" name="start_date" class="form-control form-control-sm" value="{{ start_date }}">
+        </div>
+        <div class="col-auto">
+          <label class="form-label fw-semibold small mb-1">To</label>
+          <input type="date" name="end_date" class="form-control form-control-sm" value="{{ end_date }}">
+        </div>
+        <div class="col-auto">
+          <button type="submit" class="btn btn-sm" style="background:#D4AF37; color:#1a1a1a; font-weight:600;"><i class="bi bi-funnel me-1"></i>Filter</button>
+        </div>
+        <div class="col-auto ms-auto">
+          <a href="#" onclick="exportCsv()" class="btn btn-sm btn-success"><i class="bi bi-file-earmark-excel me-1"></i>Export CSV</a>
+          <button onclick="window.print()" class="btn btn-sm btn-outline-secondary ms-1"><i class="bi bi-printer me-1"></i>Print</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  {% set sm = report.summary %}
+  <div class="row g-3 mb-4">
+    <div class="col-6 col-md-2">
+      <div class="card border-0 shadow-sm text-center p-3" style="border-radius:10px;">
+        <div class="fw-bold fs-5" style="color:#b8960a">{{ sm.product_count }}</div>
+        <div class="small text-muted">Products Sold</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-2">
+      <div class="card border-0 shadow-sm text-center p-3" style="border-radius:10px;">
+        <div class="fw-bold fs-5">{{ sm.total_units_sold }}</div>
+        <div class="small text-muted">Units Sold</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="card border-0 shadow-sm text-center p-3" style="border-radius:10px;">
+        <div class="fw-bold fs-5 text-primary">{{ sm.total_revenue | currency }}</div>
+        <div class="small text-muted">Total Revenue</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-2">
+      <div class="card border-0 shadow-sm text-center p-3" style="border-radius:10px;">
+        <div class="fw-bold fs-5 text-danger">{{ sm.total_cost | currency }}</div>
+        <div class="small text-muted">Total Cost</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="card border-0 shadow-sm text-center p-3" style="border-radius:10px; background:#fffbf0; border:2px solid #D4AF37;">
+        <div class="fw-bold fs-5" style="color:#b8960a">{{ sm.gross_profit | currency }}</div>
+        <div class="small text-muted">Gross Profit · <strong>{{ sm.overall_margin_percent }}%</strong> margin</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card shadow-sm border-0" style="border-radius:12px;">
+    <div class="card-header bg-white border-0 py-3 px-4 d-flex justify-content-between align-items-center">
+      <h6 class="fw-bold mb-0"><i class="bi bi-graph-up-arrow me-2" style="color:#b8960a"></i>Profit by Product ({{ start_date }} to {{ end_date }})</h6>
+      <span class="badge" style="background:#D4AF37; color:#1a1a1a;">{{ sm.product_count }} products</span>
+    </div>
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-sm table-hover mb-0 align-middle">
+          <thead class="table-light">
+            <tr>
+              <th class="px-3">Product</th><th>Category</th><th class="text-end">Units Sold</th>
+              <th class="text-end">Revenue</th><th class="text-end">Cost</th>
+              <th class="text-end">Gross Profit</th><th class="text-end">Margin %</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for p in report.products %}
+            <tr>
+              <td class="px-3 fw-semibold">{{ p.product_name }}</td>
+              <td class="text-muted small">{{ p.category_name }}</td>
+              <td class="text-end">{{ p.units_sold }}</td>
+              <td class="text-end text-primary">{{ p.total_revenue | currency }}</td>
+              <td class="text-end text-danger">{{ p.total_cost | currency }}</td>
+              <td class="text-end fw-bold" style="color:#b8960a">{{ p.gross_profit | currency }}</td>
+              <td class="text-end">
+                <span class="badge {% if p.margin_percent >= 30 %}bg-success{% elif p.margin_percent >= 15 %}bg-warning text-dark{% else %}bg-secondary{% endif %}">
+                  {{ p.margin_percent }}%
+                </span>
+              </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="7" class="text-center text-muted py-4">No sales in this period.</td></tr>
+            {% endfor %}
+          </tbody>
+          {% if report.products %}
+          <tfoot class="table-light fw-bold">
+            <tr>
+              <td colspan="2" class="px-3">TOTAL</td>
+              <td class="text-end">{{ sm.total_units_sold }}</td>
+              <td class="text-end text-primary">{{ sm.total_revenue | currency }}</td>
+              <td class="text-end text-danger">{{ sm.total_cost | currency }}</td>
+              <td class="text-end" style="color:#b8960a">{{ sm.gross_profit | currency }}</td>
+              <td class="text-end">{{ sm.overall_margin_percent }}%</td>
+            </tr>
+          </tfoot>
+          {% endif %}
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+function exportCsv() {
+  const p = new URLSearchParams(window.location.search);
+  window.location.href = '/api/reports/profit/csv?' + p.toString();
+}
+</script>
+{% endblock %}

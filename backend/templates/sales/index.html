@@ -1,0 +1,207 @@
+{% extends 'base.html' %}
+
+{% block title %}Sales & Billing{% endblock %}
+{% block header_title %}Sales &amp; Billing{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4 py-4">
+
+  <!-- ── Metrics Row ── -->
+  <div class="row g-3 mb-4">
+    <div class="col-6 col-md-4 col-lg-2">
+      <div class="card border-0 shadow-sm h-100" style="border-left: 4px solid var(--vl-maroon) !important;">
+        <div class="card-body py-3 px-3">
+          <div class="text-muted small">Total Sales</div>
+          <div class="fw-bold fs-4">{{ metrics.total_sales }}</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-md-4 col-lg-2">
+      <div class="card border-0 shadow-sm h-100" style="border-left: 4px solid var(--vl-gold) !important;">
+        <div class="card-body py-3 px-3">
+          <div class="text-muted small">Total Revenue</div>
+          <div class="fw-bold fs-5 text-success">{{ metrics.total_revenue | currency }}</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-md-4 col-lg-2">
+      <div class="card border-0 shadow-sm h-100" style="border-left: 4px solid #6c757d !important;">
+        <div class="card-body py-3 px-3">
+          <div class="text-muted small">This Month</div>
+          <div class="fw-bold">{{ metrics.this_month_count }}</div>
+          <div class="small text-muted">{{ metrics.this_month_revenue | currency }}</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-md-4 col-lg-2">
+      <div class="card border-0 shadow-sm h-100" style="border-left: 4px solid #dc3545 !important;">
+        <div class="card-body py-3 px-3">
+          <div class="text-muted small">Outstanding</div>
+          <div class="fw-bold fs-5 text-danger">{{ metrics.total_outstanding | currency }}</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-md-4 col-lg-2">
+      <div class="card border-0 shadow-sm h-100" style="border-left: 4px solid #fd7e14 !important;">
+        <div class="card-body py-3 px-3">
+          <div class="text-muted small">Credit Sales</div>
+          <div class="fw-bold fs-4">{{ metrics.credit_sales_count }}</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-md-4 col-lg-2 d-flex align-items-center justify-content-end">
+      {% if session.get('user_role') in ['ADMIN', 'STAFF'] %}
+      <a href="{{ url_for('sales.new') }}" class="btn btn-lg w-100 d-flex align-items-center justify-content-center gap-2"
+         style="background:var(--vl-maroon);color:#fff;font-weight:600;">
+        <i class="bi bi-plus-circle-fill"></i> New Sale
+      </a>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- ── Filters ── -->
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-body py-3">
+      <form method="GET" action="{{ url_for('sales.index') }}" class="row g-2 align-items-end">
+        <div class="col-12 col-md-4">
+          <label class="form-label small fw-semibold mb-1">Search</label>
+          <input type="text" id="searchInput" name="search" class="form-control form-control-sm"
+                 placeholder="Invoice no., customer name or phone…"
+                 value="{{ current_search }}">
+        </div>
+        <div class="col-6 col-md-2">
+          <label class="form-label small fw-semibold mb-1">Payment Method</label>
+          <select name="payment_method" class="form-select form-select-sm">
+            <option value="ALL" {% if current_payment_method == 'ALL' %}selected{% endif %}>All Methods</option>
+            {% for m in ['CASH','UPI','CARD','CREDIT','SPLIT'] %}
+            <option value="{{ m }}" {% if current_payment_method == m %}selected{% endif %}>{{ m }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-6 col-md-2">
+          <label class="form-label small fw-semibold mb-1">Status</label>
+          <select name="payment_status" class="form-select form-select-sm">
+            <option value="ALL" {% if current_payment_status == 'ALL' %}selected{% endif %}>All Status</option>
+            <option value="PAID"    {% if current_payment_status == 'PAID'    %}selected{% endif %}>Paid</option>
+            <option value="PARTIAL" {% if current_payment_status == 'PARTIAL' %}selected{% endif %}>Partial</option>
+            <option value="CREDIT"  {% if current_payment_status == 'CREDIT'  %}selected{% endif %}>Credit</option>
+          </select>
+        </div>
+        <div class="col-6 col-md-2">
+          <label class="form-label small fw-semibold mb-1">From</label>
+          <input type="date" name="date_from" class="form-control form-control-sm"
+                 value="{{ current_date_from }}">
+        </div>
+        <div class="col-6 col-md-1">
+          <label class="form-label small fw-semibold mb-1">To</label>
+          <input type="date" name="date_to" class="form-control form-control-sm"
+                 value="{{ current_date_to }}">
+        </div>
+        <div class="col-12 col-md-1 d-flex gap-2">
+          <button type="submit" class="btn btn-sm btn-danger w-100">
+            <i class="bi bi-search"></i>
+          </button>
+          <a href="{{ url_for('sales.index') }}" class="btn btn-sm btn-outline-secondary w-100">
+            <i class="bi bi-x"></i>
+          </a>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ── Sales Table ── -->
+  <div class="card border-0 shadow-sm">
+    <div class="card-header bg-white d-flex justify-content-between align-items-center py-3">
+      <h6 class="mb-0 fw-bold">
+        <i class="bi bi-cart-check-fill text-danger me-2"></i>Sales Invoices
+        <span class="badge bg-danger ms-1">{{ sales | length }}</span>
+      </h6>
+    </div>
+    <div class="card-body p-0">
+      {% if sales %}
+      <div class="table-responsive">
+        <table class="table table-hover mb-0 align-middle" id="salesTable">
+          <thead class="table-light">
+            <tr>
+              <th class="px-3">Invoice #</th>
+              <th>Date</th>
+              <th>Customer</th>
+              <th>Items</th>
+              <th class="text-end">Total</th>
+              <th class="text-end">Paid</th>
+              <th class="text-end">Balance</th>
+              <th>Method</th>
+              <th>Status</th>
+              <th>Staff</th>
+              <th class="text-center">Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for s in sales %}
+            <tr>
+              <td class="px-3">
+                <a href="{{ url_for('sales.view', sale_id=s.sale_id) }}"
+                   class="fw-semibold text-decoration-none" style="color:var(--vl-maroon);">
+                  {{ s.invoice_number }}
+                </a>
+              </td>
+              <td class="text-nowrap small">{{ s.sale_date }}</td>
+              <td>
+                {% if s.customer_name %}
+                  <div class="fw-semibold small">{{ s.customer_name }}</div>
+                  <div class="text-muted" style="font-size:.75rem;">{{ s.customer_phone }}</div>
+                {% else %}
+                  <span class="text-muted small">Walk-in</span>
+                {% endif %}
+              </td>
+              <td class="text-center">
+                <span class="badge bg-light text-dark border">{{ s.item_count }} / {{ s.total_quantity }} pcs</span>
+              </td>
+              <td class="text-end fw-semibold">{{ s.total_amount | currency }}</td>
+              <td class="text-end text-success small">{{ s.paid_amount | currency }}</td>
+              <td class="text-end small {% if s.balance_amount > 0 %}text-danger fw-semibold{% endif %}">
+                {{ s.balance_amount | currency }}
+              </td>
+              <td>
+                <span class="badge
+                  {% if s.payment_method == 'CASH' %}bg-success
+                  {% elif s.payment_method == 'UPI' %}bg-info text-dark
+                  {% elif s.payment_method == 'CARD' %}bg-primary
+                  {% elif s.payment_method == 'CREDIT' %}bg-danger
+                  {% else %}bg-warning text-dark{% endif %}">
+                  {{ s.payment_method }}
+                </span>
+              </td>
+              <td>
+                <span class="badge
+                  {% if s.payment_status == 'PAID' %}bg-success
+                  {% elif s.payment_status == 'PARTIAL' %}bg-warning text-dark
+                  {% else %}bg-danger{% endif %}">
+                  {{ s.payment_status }}
+                </span>
+              </td>
+              <td class="text-muted small">{{ s.created_by_name }}</td>
+              <td class="text-center">
+                <a href="{{ url_for('sales.view', sale_id=s.sale_id) }}"
+                   class="btn btn-sm btn-outline-secondary" title="View Invoice">
+                  <i class="bi bi-eye"></i>
+                </a>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="text-center py-5 text-muted">
+        <i class="bi bi-cart-x fs-1 d-block mb-2 text-secondary"></i>
+        <p class="mb-1">No sales found.</p>
+        <a href="{{ url_for('sales.new') }}" class="btn btn-sm btn-danger mt-2">
+          <i class="bi bi-plus"></i> Record First Sale
+        </a>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,571 @@
+{% extends "base.html" %}
+
+{% block title %}Process Return / Exchange – VL Silks{% endblock %}
+{% block header_title %}Process Return & Exchange{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+    <!-- Step 1: Invoice Selection & Lookup -->
+    <div class="col-12">
+        <div class="vl-card">
+            <h2 class="h5 brand-font mb-3"><i class="bi bi-receipt me-2 text-danger"></i> Step 1: Select Original Sales Invoice</h2>
+
+            <!-- === INVOICE SEARCH (AJAX) === -->
+            <div class="mb-4 pb-4 border-bottom">
+                <label class="form-label small fw-semibold text-uppercase text-muted" for="invoiceSearchInput">
+                    <i class="bi bi-search me-1 text-danger"></i> Search Invoice / Customer / Phone / SKU
+                </label>
+                <div class="position-relative">
+                    <input type="text"
+                           id="invoiceSearchInput"
+                           class="form-control pe-5"
+                           placeholder="e.g. SALE-2026-0484, POS Credit Test, 9000000001, TEST-NEW-001, or Sale ID 1275"
+                           autocomplete="off"
+                           spellcheck="false">
+                    <div class="position-absolute top-50 end-0 translate-middle-y me-2 pe-1" id="searchSpinner" style="display:none;">
+                        <div class="spinner-border spinner-border-sm text-danger" role="status">
+                            <span class="visually-hidden">Searching…</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="small text-muted mt-1">
+                    Search across all invoices — not limited to recent sales. Partial matches supported.
+                </div>
+
+                <!-- Search Results Panel -->
+                <div id="invoiceSearchResults" class="mt-2" style="display:none;">
+                    <div class="border rounded overflow-hidden shadow-sm" id="searchResultsContainer">
+                        <!-- Populated by JS -->
+                    </div>
+                    <div class="small text-muted mt-1" id="searchResultsMeta"></div>
+                </div>
+                <div id="searchNoResults" class="mt-2 small text-warning" style="display:none;">
+                    <i class="bi bi-exclamation-triangle me-1"></i>
+                    No matching invoices found.
+                </div>
+                <div id="searchError" class="mt-2 small text-danger" style="display:none;"></div>
+            </div>
+
+            <!-- === RECENT SALES DROPDOWN + DIRECT ID === -->
+            <form method="GET" action="{{ url_for('returns.new') }}" class="row g-3 align-items-end" id="saleLookupForm">
+                {% if mode and mode != 'return' %}
+                <input type="hidden" name="mode" value="{{ mode }}">
+                {% endif %}
+                <div class="col-md-7">
+                    <label class="form-label small fw-semibold text-uppercase text-muted" for="selected_sale_id">Select from Recent Sales</label>
+                    <select name="selected_sale_id" id="selected_sale_id" class="form-select" onchange="if(this.value){ document.getElementById('direct_sale_id').value=''; this.form.submit(); }">
+                        <option value="">-- Choose an Invoice --</option>
+                        {% for s in recent_sales %}
+                        <option value="{{ s.sale_id }}" {% if sale and sale.sale_id == s.sale_id %}selected{% endif %}>
+                            {{ s.invoice_number }} &bull; {{ s.sale_date }} &bull; {{ s.customer_name or 'Walk-in Customer' }} &bull; {{ s.total_amount | currency }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label small fw-semibold text-uppercase text-muted" for="direct_sale_id">Or Enter Sale ID directly</label>
+                    <input type="number" name="direct_sale_id" id="direct_sale_id" class="form-control" placeholder="e.g. 2030" value="{{ sale.sale_id if sale else '' }}" min="1">
+                </div>
+                <div class="col-md-2">
+                    <button type="submit" class="btn btn-outline-danger w-100 fw-semibold">
+                        <i class="bi bi-search me-1"></i> Load Sale
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    {% if sale %}
+    <!-- Step 2 & 3: Invoice Details and Returnable Line Items -->
+    <div class="col-12">
+        <form method="POST" action="{{ url_for('returns.new') }}" id="returnForm">
+            <input type="hidden" name="sale_id" value="{{ sale.sale_id }}">
+            
+            <div class="row g-4">
+                <!-- Sale Summary Banner -->
+                <div class="col-12">
+                    <div class="p-3 bg-light rounded border d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
+                        <div>
+                            <span class="badge bg-danger fs-6 px-3 py-1 mb-1">{{ sale.invoice_number }}</span>
+                            <div class="fw-semibold text-dark fs-5">
+                                {{ sale.customer_name or 'Walk-in Customer' }} 
+                                {% if sale.customer_phone %}<span class="text-muted small">({{ sale.customer_phone }})</span>{% endif %}
+                            </div>
+                            <div class="small text-muted">Billed Date: {{ sale.sale_date }} &bull; Original Total: <b>{{ sale.total_amount | currency }}</b> &bull; Payment: {{ sale.payment_method }} ({{ sale.payment_status }})</div>
+                        </div>
+                        <div class="d-flex gap-2 align-items-center">
+                            <span class="small fw-semibold text-uppercase text-muted">Workflow Mode:</span>
+                            <div class="btn-group" role="group">
+                                <input type="radio" class="btn-check" name="action_type" id="modeReturn" value="RETURN" {% if mode != 'exchange' %}checked{% endif %}>
+                                <label class="btn btn-outline-danger btn-sm px-3" for="modeReturn"><i class="bi bi-arrow-return-left me-1"></i> Return Only</label>
+
+                                <input type="radio" class="btn-check" name="action_type" id="modeExchange" value="EXCHANGE" {% if mode == 'exchange' %}checked{% endif %}>
+                                <label class="btn btn-outline-warning btn-sm px-3 text-dark" for="modeExchange"><i class="bi bi-arrow-left-right me-1"></i> Garment Exchange</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Returnable Items Table -->
+                <div class="col-12">
+                    <div class="vl-card">
+                        <h3 class="h6 brand-font mb-3 text-danger"><i class="bi bi-box-seam me-2"></i> Select Items to Return / Exchange</h3>
+                        
+                        <div class="table-responsive">
+                            <table class="vl-table align-middle">
+                                <thead>
+                                    <tr>
+                                        <th>Product / Variant</th>
+                                        <th>SKU / Details</th>
+                                        <th class="text-center">Sold Qty</th>
+                                        <th class="text-center">Already Returned</th>
+                                        <th class="text-center">Returnable Qty</th>
+                                        <th class="text-end">Effective Price</th>
+                                        <th style="width: 140px;">Return Qty</th>
+                                        <th style="width: 170px;">Condition</th>
+                                        <th class="text-end" style="width: 130px;">Refund Amount</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% if returnable_items %}
+                                        {% for it in returnable_items %}
+                                        <tr class="{% if not it.is_returnable %}opacity-50 bg-light{% endif %}">
+                                            <td>
+                                                <div class="fw-bold text-dark">{{ it.product_name }}</div>
+                                                <div class="small text-muted">{{ it.brand }} &bull; {{ it.category_name }}</div>
+                                            </td>
+                                            <td>
+                                                <span class="badge bg-light text-dark border">{{ it.sku }}</span>
+                                                <div class="small text-muted mt-1">Size: {{ it.size }} | {{ it.color }}</div>
+                                            </td>
+                                            <td class="text-center fw-semibold">{{ it.sold_quantity }}</td>
+                                            <td class="text-center text-muted">{{ it.already_returned_quantity }}</td>
+                                            <td class="text-center">
+                                                {% if it.returnable_quantity > 0 %}
+                                                    <span class="badge bg-success">{{ it.returnable_quantity }} available</span>
+                                                {% else %}
+                                                    <span class="badge bg-secondary">Fully returned</span>
+                                                {% endif %}
+                                            </td>
+                                            <td class="text-end fw-semibold">
+                                                {{ it.effective_unit_price | currency }}
+                                            </td>
+                                            <td>
+                                                {% if it.returnable_quantity > 0 %}
+                                                    <input type="number" 
+                                                           name="item_qty_{{ it.sale_item_id }}" 
+                                                           class="form-control form-control-sm return-qty-input" 
+                                                           min="0" 
+                                                           max="{{ it.returnable_quantity }}" 
+                                                           value="0" 
+                                                           data-unit-price="{{ it.effective_unit_price }}"
+                                                           data-item-id="{{ it.sale_item_id }}">
+                                                {% else %}
+                                                    <input type="text" class="form-control form-control-sm" disabled value="0">
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                {% if it.returnable_quantity > 0 %}
+                                                    <select name="item_condition_{{ it.sale_item_id }}" class="form-select form-select-sm">
+                                                        <option value="RESTOCKABLE">Restockable (Back to stock)</option>
+                                                        <option value="DAMAGED">Damaged (Do not restock)</option>
+                                                    </select>
+                                                {% else %}
+                                                    <span class="small text-muted">—</span>
+                                                {% endif %}
+                                            </td>
+                                            <td class="text-end fw-bold text-danger">
+                                                <span id="lineRefundDisplay_{{ it.sale_item_id }}">₹0.00</span>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    {% else %}
+                                        <tr>
+                                            <td colspan="9" class="text-center py-4 text-muted">
+                                                No items found for this invoice.
+                                            </td>
+                                        </tr>
+                                    {% endif %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Exchange Options Box (Hidden when in Return Only mode) -->
+                <div class="col-12" id="exchangeSection" style="{% if mode != 'exchange' %}display: none;{% endif %}">
+                    <div class="vl-card border-warning border-start border-4">
+                        <h3 class="h6 brand-font mb-3 text-dark"><i class="bi bi-arrow-left-right me-2 text-warning"></i> Select Replacement Garment Variant</h3>
+                        
+                        <div class="row g-3">
+                            <div class="col-md-7">
+                                <label class="form-label small fw-semibold text-uppercase text-muted">Select Replacement Variant</label>
+                                <select name="exchange_new_variant_id" id="exchangeVariantSelect" class="form-select">
+                                    <option value="">-- Choose Replacement Product / Size / Color --</option>
+                                    {% for ev in exchange_variants %}
+                                    <option value="{{ ev.variant_id }}" data-price="{{ ev.selling_price }}" data-stock="{{ ev.stock_quantity }}">
+                                        {{ ev.product_name }} &bull; {{ ev.sku }} &bull; {{ ev.size }} &bull; {{ ev.color }} &bull; {{ ev.selling_price | currency }} (Stock: {{ ev.stock_quantity }})
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label small fw-semibold text-uppercase text-muted">Quantity</label>
+                                <input type="number" name="exchange_new_quantity" id="exchangeQuantityInput" class="form-control" min="1" value="1">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label small fw-semibold text-uppercase text-muted">Replacement Value</label>
+                                <div class="form-control bg-light fw-bold text-dark" id="replacementValueDisplay">₹0.00</div>
+                            </div>
+                        </div>
+
+                        <div class="mt-3 p-3 bg-light rounded border d-flex justify-content-between align-items-center" id="exchangeDiffBanner">
+                            <div>
+                                <span class="small fw-semibold text-uppercase text-muted d-block">Exchange Balance Breakdown</span>
+                                <span class="small" id="exchangeDiffExplanation">Select return items and replacement variant to calculate difference.</span>
+                            </div>
+                            <div class="text-end">
+                                <span class="small text-muted text-uppercase d-block">Price Difference</span>
+                                <span class="fs-5 fw-bold" id="exchangeDiffAmountDisplay">₹0.00</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Refund & Reason Details -->
+                <div class="col-lg-6">
+                    <div class="vl-card h-100">
+                        <h3 class="h6 brand-font mb-3"><i class="bi bi-chat-left-text me-2 text-danger"></i> Return Reason & Notes</h3>
+                        <div class="mb-3">
+                            <label class="form-label small fw-semibold text-uppercase text-muted">Return Date</label>
+                            <input type="date" name="return_date" class="form-control" value="{{ today }}" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label small fw-semibold text-uppercase text-muted">Reason / Remarks</label>
+                            <textarea name="return_reason" class="form-control" rows="3" placeholder="e.g. Size didn't fit, customer selected different color, slight color variance..."></textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Refund Settlement Options & Confirmation -->
+                <div class="col-lg-6">
+                    <div class="vl-card h-100">
+                        <h3 class="h6 brand-font mb-3"><i class="bi bi-wallet2 me-2 text-danger"></i> Refund / Settlement Method</h3>
+                        
+                        <div id="returnRefundOptions">
+                            <div class="mb-3">
+                                <label class="form-label small fw-semibold text-uppercase text-muted">Refund Method</label>
+                                <div class="d-flex flex-column gap-2">
+                                    <div class="form-check p-3 border rounded bg-light">
+                                        <input class="form-check-input" type="radio" name="refund_type" id="refundCash" value="CASH" checked>
+                                        <label class="form-check-label fw-semibold" for="refundCash">
+                                            <i class="bi bi-cash-stack text-success me-1"></i> Cash / Instant Refund
+                                            <div class="text-muted small fw-normal">Refund cash directly to customer across billing counter.</div>
+                                        </label>
+                                    </div>
+                                    <div class="form-check p-3 border rounded bg-light {% if not sale.customer_id %}opacity-50{% endif %}">
+                                        <input class="form-check-input" type="radio" name="refund_type" id="refundCredit" value="CREDIT_ADJUSTMENT" {% if not sale.customer_id %}disabled{% endif %}>
+                                        <label class="form-check-label fw-semibold" for="refundCredit">
+                                            <i class="bi bi-journal-check text-primary me-1"></i> Credit / Udhaar Account Adjustment
+                                            <div class="text-muted small fw-normal">
+                                                {% if sale.customer_id %}
+                                                    Credit ₹ refund amount to <b>{{ sale.customer_name }}</b>'s Udhaar ledger to reduce balance.
+                                                {% else %}
+                                                    Not available for walk-in cash sales (requires registered customer).
+                                                {% endif %}
+                                            </div>
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="exchangePaymentOptions" style="display: none;">
+                            <div class="mb-3">
+                                <label class="form-label small fw-semibold text-uppercase text-muted">Difference Payment Method</label>
+                                <select name="diff_payment_method" class="form-select">
+                                    <option value="CASH">Cash / Counter Payment</option>
+                                    <option value="UPI">UPI / Digital</option>
+                                    <option value="CARD">Card</option>
+                                    {% if sale.customer_id %}
+                                    <option value="CREDIT_ADJUSTMENT">Adjust Customer Udhaar Ledger</option>
+                                    {% endif %}
+                                </select>
+                            </div>
+                        </div>
+
+                        <hr class="my-3">
+
+                        <!-- Total Refund Preview -->
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <span class="fw-semibold text-muted text-uppercase small">Total Calculated Refund:</span>
+                            <span class="fs-4 fw-bold text-danger" id="totalRefundDisplay">₹0.00</span>
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-danger py-2 fw-semibold" id="submitBtn">
+                                <i class="bi bi-check-circle-fill me-1"></i> Confirm & Process Return
+                            </button>
+                            <a href="{{ url_for('returns.index') }}" class="btn btn-outline-secondary btn-sm">
+                                Cancel
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Interactive Calculation Script -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const qtyInputs = document.querySelectorAll('.return-qty-input');
+    const modeReturn = document.getElementById('modeReturn');
+    const modeExchange = document.getElementById('modeExchange');
+    const exchangeSection = document.getElementById('exchangeSection');
+    const returnRefundOptions = document.getElementById('returnRefundOptions');
+    const exchangePaymentOptions = document.getElementById('exchangePaymentOptions');
+    const totalRefundDisplay = document.getElementById('totalRefundDisplay');
+    const exchangeVariantSelect = document.getElementById('exchangeVariantSelect');
+    const exchangeQuantityInput = document.getElementById('exchangeQuantityInput');
+    const replacementValueDisplay = document.getElementById('replacementValueDisplay');
+    const exchangeDiffAmountDisplay = document.getElementById('exchangeDiffAmountDisplay');
+    const exchangeDiffExplanation = document.getElementById('exchangeDiffExplanation');
+    const submitBtn = document.getElementById('submitBtn');
+
+    function calculateRefund() {
+        let totalOldRefund = 0;
+
+        qtyInputs.forEach(input => {
+            const qty = parseInt(input.value) || 0;
+            const unitPrice = parseFloat(input.dataset.unitPrice) || 0;
+            const lineRefund = qty * unitPrice;
+            const itemId = input.dataset.itemId;
+            
+            const lineDisplay = document.getElementById('lineRefundDisplay_' + itemId);
+            if (lineDisplay) {
+                lineDisplay.textContent = '₹' + lineRefund.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            }
+            totalOldRefund += lineRefund;
+        });
+
+        if (totalRefundDisplay) {
+            totalRefundDisplay.textContent = '₹' + totalOldRefund.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
+
+        // If in exchange mode, calculate difference
+        if (modeExchange && modeExchange.checked && exchangeVariantSelect) {
+            const selectedOpt = exchangeVariantSelect.options[exchangeVariantSelect.selectedIndex];
+            const newPrice = selectedOpt ? parseFloat(selectedOpt.dataset.price || 0) : 0;
+            const newQty = parseInt(exchangeQuantityInput.value) || 1;
+            const totalNewValue = newPrice * newQty;
+
+            if (replacementValueDisplay) {
+                replacementValueDisplay.textContent = '₹' + totalNewValue.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            }
+
+            const diff = totalNewValue - totalOldRefund;
+            if (exchangeDiffAmountDisplay) {
+                exchangeDiffAmountDisplay.textContent = (diff >= 0 ? '+' : '') + '₹' + diff.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                if (diff > 0) {
+                    exchangeDiffAmountDisplay.className = 'fs-5 fw-bold text-danger';
+                    exchangeDiffExplanation.textContent = 'Customer pays additional ₹' + diff.toFixed(2) + ' for the higher-value garment.';
+                } else if (diff < 0) {
+                    exchangeDiffAmountDisplay.className = 'fs-5 fw-bold text-success';
+                    exchangeDiffExplanation.textContent = 'Store refunds ₹' + Math.abs(diff).toFixed(2) + ' to customer.';
+                } else {
+                    exchangeDiffAmountDisplay.className = 'fs-5 fw-bold text-dark';
+                    exchangeDiffExplanation.textContent = 'Even exchange (zero price difference).';
+                }
+            }
+        }
+    }
+
+    function toggleMode() {
+        const isExchange = modeExchange && modeExchange.checked;
+        if (exchangeSection) {
+            exchangeSection.style.display = isExchange ? 'block' : 'none';
+        }
+        if (returnRefundOptions) {
+            returnRefundOptions.style.display = isExchange ? 'none' : 'block';
+        }
+        if (exchangePaymentOptions) {
+            exchangePaymentOptions.style.display = isExchange ? 'block' : 'none';
+        }
+        if (submitBtn) {
+            submitBtn.innerHTML = isExchange ? 
+                '<i class="bi bi-arrow-left-right me-1"></i> Confirm & Process Garment Exchange' : 
+                '<i class="bi bi-check-circle-fill me-1"></i> Confirm & Process Return';
+        }
+        calculateRefund();
+    }
+
+    if (modeReturn) modeReturn.addEventListener('change', toggleMode);
+    if (modeExchange) modeExchange.addEventListener('change', toggleMode);
+    if (exchangeVariantSelect) exchangeVariantSelect.addEventListener('change', calculateRefund);
+    if (exchangeQuantityInput) exchangeQuantityInput.addEventListener('input', calculateRefund);
+
+    qtyInputs.forEach(input => {
+        input.addEventListener('input', calculateRefund);
+    });
+
+    calculateRefund();
+
+    // =========================================================================
+    // INVOICE SEARCH (AJAX / DEBOUNCED)
+    // =========================================================================
+    const searchInput = document.getElementById('invoiceSearchInput');
+    const searchSpinner = document.getElementById('searchSpinner');
+    const searchResultsPanel = document.getElementById('invoiceSearchResults');
+    const searchResultsContainer = document.getElementById('searchResultsContainer');
+    const searchResultsMeta = document.getElementById('searchResultsMeta');
+    const searchNoResults = document.getElementById('searchNoResults');
+    const searchError = document.getElementById('searchError');
+
+    if (searchInput) {
+        let searchDebounce = null;
+        let currentSearchController = null;
+
+        function fmtCurrency(amount) {
+            return '\u20b9' + parseFloat(amount).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
+
+        function hideSearchPanels() {
+            searchResultsPanel.style.display = 'none';
+            searchNoResults.style.display = 'none';
+            searchError.style.display = 'none';
+            searchError.textContent = '';
+        }
+
+        function buildResultRow(s) {
+            const fullyReturned = s.is_fully_returned;
+            const hasExistingReturns = s.existing_returns_count > 0;
+
+            let returnableBadge;
+            if (fullyReturned) {
+                returnableBadge = '<span class="badge bg-secondary ms-2">Fully Returned</span>';
+            } else if (hasExistingReturns) {
+                returnableBadge = '<span class="badge bg-warning text-dark ms-2">Partial Return</span>';
+            } else {
+                returnableBadge = '<span class="badge bg-success ms-2">Returnable</span>';
+            }
+
+            const payBadgeClass = s.payment_method === 'CREDIT' ? 'bg-warning text-dark' :
+                                  s.payment_method === 'CASH'   ? 'bg-success' : 'bg-primary';
+
+            const row = document.createElement('div');
+            row.className = 'px-3 py-2 border-bottom d-flex justify-content-between align-items-start gap-3' +
+                (fullyReturned ? ' bg-light' : ' bg-white');
+            row.style.cursor = fullyReturned ? 'not-allowed' : 'pointer';
+            row.setAttribute('data-sale-id', s.sale_id);
+
+            row.innerHTML =
+                '<div>' +
+                    '<div class="fw-semibold text-dark">' +
+                        '<span class="badge bg-danger me-1">' + s.invoice_number + '</span>' +
+                        returnableBadge +
+                    '</div>' +
+                    '<div class="small text-muted mt-1">' +
+                        '<i class="bi bi-person me-1"></i>' + s.customer_name +
+                        (s.customer_phone ? ' &bull; <i class="bi bi-telephone me-1"></i>' + s.customer_phone : '') +
+                    '</div>' +
+                    '<div class="small text-muted">' +
+                        '<i class="bi bi-calendar3 me-1"></i>' + s.sale_date +
+                        ' &bull; Sale&nbsp;ID:&nbsp;' + s.sale_id +
+                    '</div>' +
+                '</div>' +
+                '<div class="text-end flex-shrink-0">' +
+                    '<div class="fw-bold text-dark">' + fmtCurrency(s.total_amount) + '</div>' +
+                    '<div><span class="badge ' + payBadgeClass + ' mt-1">' + s.payment_method + '</span></div>' +
+                '</div>';
+
+            if (!fullyReturned) {
+                row.addEventListener('click', function() {
+                    const saleId = this.getAttribute('data-sale-id');
+                    window.location.href = '/returns/new?sale_id=' + encodeURIComponent(saleId);
+                });
+                row.addEventListener('mouseenter', function() { this.style.backgroundColor = '#fff8e1'; });
+                row.addEventListener('mouseleave', function() { this.style.backgroundColor = ''; });
+            }
+
+            return row;
+        }
+
+        function doSearch(q) {
+            if (q.trim().length < 2) {
+                hideSearchPanels();
+                return;
+            }
+
+            if (currentSearchController) {
+                currentSearchController.abort();
+            }
+            currentSearchController = new AbortController();
+
+            searchSpinner.style.display = '';
+            hideSearchPanels();
+
+            fetch('/api/returns/sales/search?q=' + encodeURIComponent(q.trim()) + '&limit=20', {
+                signal: currentSearchController.signal,
+                headers: { 'Accept': 'application/json' }
+            })
+            .then(function(resp) {
+                searchSpinner.style.display = 'none';
+                if (!resp.ok) {
+                    return resp.json().then(function(d) {
+                        throw new Error(d.message || ('HTTP ' + resp.status));
+                    });
+                }
+                return resp.json();
+            })
+            .then(function(data) {
+                searchResultsContainer.innerHTML = '';
+                if (!data.data || data.data.length === 0) {
+                    searchNoResults.style.display = '';
+                    return;
+                }
+                data.data.forEach(function(s) {
+                    searchResultsContainer.appendChild(buildResultRow(s));
+                });
+                searchResultsPanel.style.display = '';
+                const eligible = data.data.filter(function(s) { return !s.is_fully_returned; }).length;
+                searchResultsMeta.textContent =
+                    data.count + ' invoice' + (data.count !== 1 ? 's' : '') + ' found' +
+                    (eligible < data.count ? ' (' + (data.count - eligible) + ' fully returned — not selectable)' : '') +
+                    '. Click a row to load it.';
+            })
+            .catch(function(err) {
+                searchSpinner.style.display = 'none';
+                if (err.name === 'AbortError') return;
+                searchError.textContent = 'Search failed: ' + err.message;
+                searchError.style.display = '';
+            });
+        }
+
+        searchInput.addEventListener('input', function() {
+            clearTimeout(searchDebounce);
+            const q = this.value;
+            if (q.trim().length < 2) {
+                hideSearchPanels();
+                return;
+            }
+            searchDebounce = setTimeout(function() { doSearch(q); }, 350);
+        });
+
+        document.addEventListener('click', function(e) {
+            if (!searchInput.contains(e.target) && !searchResultsPanel.contains(e.target)) {
+                searchResultsPanel.style.display = 'none';
+            }
+        });
+
+        searchInput.addEventListener('focus', function() {
+            if (searchResultsContainer && searchResultsContainer.children.length > 0) {
+                searchResultsPanel.style.display = '';
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,49 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+*.egg
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Environment & secrets — never commit real credentials
+.env
+
+# IDE
+.vscode/
+.idea/
+
+# Test tooling
+.pytest_cache/
+test-results/
+playwright-report/
+
+# Node (Playwright runner)
+node_modules/
+
+# Scratch directory — contains timestamped DB backups and temporary scripts
+scratch/
+
+# Standalone JSON state files from QA runs
+scratch_baseline.json
+scratch_qa_baseline.json
+
+# Generated SQL backup files (backups of vl_silks_db)
+# database/schema.sql and database/seed.sql are KEPT (required for deployment)
+*.sql.backup
+*.sql.bak
+*.dump.sql
+*_backup_*.sql
+*_final_backup_*.sql
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db

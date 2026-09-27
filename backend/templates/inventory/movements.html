@@ -1,0 +1,190 @@
+{% extends "base.html" %}
+
+{% block title %}Stock Movement Audit Log – VL Silks{% endblock %}
+{% block header_title %}Stock Movement Audit Ledger{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-12">
+        <div class="d-flex align-items-center justify-content-between mb-3">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-0">
+                    <li class="breadcrumb-item"><a href="{{ url_for('inventory.index') }}" class="text-decoration-none text-danger">Inventory</a></li>
+                    <li class="breadcrumb-item active">Movement Audit Log</li>
+                </ol>
+            </nav>
+            <div class="d-flex gap-2">
+                <a href="{{ url_for('inventory.index') }}" class="btn btn-outline-secondary btn-sm">
+                    <i class="bi bi-arrow-left me-1"></i> Current Stock
+                </a>
+                {% if session.get('user_role') == 'ADMIN' %}
+                <a href="{{ url_for('inventory.adjustment') }}" class="vl-btn-maroon btn-sm">
+                    <i class="bi bi-sliders me-1"></i> Adjust Stock
+                </a>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="vl-card">
+            <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
+                <div>
+                    <h2 class="h5 brand-font mb-1"><i class="bi bi-journal-text me-2 text-danger"></i> Inventory Audit Trail</h2>
+                    <p class="text-muted small mb-0">Immutable chronological record of every inward, outward, adjustment, and damage movement in <code>stock_movements</code></p>
+                </div>
+            </div>
+
+            <!-- Search & Filters -->
+            <form method="GET" action="{{ url_for('inventory.movements') }}" class="row g-2 mb-4 p-3 bg-light rounded border">
+                <div class="col-lg-3 col-md-6">
+                    <div class="input-group input-group-sm">
+                        <span class="input-group-text bg-white border-end-0"><i class="bi bi-search text-muted"></i></span>
+                        <input type="text" name="search" class="form-control border-start-0"
+                            placeholder="Search product, SKU, user, note..."
+                            value="{{ current_search }}">
+                    </div>
+                </div>
+                <div class="col-lg-2 col-md-6">
+                    <select name="movement_type" class="form-select form-select-sm">
+                        <option value="ALL" {% if current_movement_type == 'ALL' %}selected{% endif %}>All Movement Types</option>
+                        <option value="PURCHASE" {% if current_movement_type == 'PURCHASE' %}selected{% endif %}>Purchase (Inward)</option>
+                        <option value="SALE" {% if current_movement_type == 'SALE' %}selected{% endif %}>Sale (Outward)</option>
+                        <option value="ADJUSTMENT" {% if current_movement_type == 'ADJUSTMENT' %}selected{% endif %}>Manual Adjustment</option>
+                        <option value="DAMAGE" {% if current_movement_type == 'DAMAGE' %}selected{% endif %}>Damaged Stock</option>
+                        <option value="OPENING" {% if current_movement_type == 'OPENING' %}selected{% endif %}>Opening Balance</option>
+                        <option value="CUSTOMER_RETURN" {% if current_movement_type == 'CUSTOMER_RETURN' %}selected{% endif %}>Customer Return</option>
+                    </select>
+                </div>
+                <div class="col-lg-2 col-md-4">
+                    <select name="reference_type" class="form-select form-select-sm">
+                        <option value="ALL" {% if current_reference_type == 'ALL' %}selected{% endif %}>All References</option>
+                        <option value="PURCHASE" {% if current_reference_type == 'PURCHASE' %}selected{% endif %}>Purchase Order</option>
+                        <option value="SALE" {% if current_reference_type == 'SALE' %}selected{% endif %}>Sales Invoice</option>
+                        <option value="RETURN" {% if current_reference_type == 'RETURN' %}selected{% endif %}>Return Voucher</option>
+                        <option value="MANUAL_ADJUSTMENT" {% if current_reference_type == 'MANUAL_ADJUSTMENT' %}selected{% endif %}>Manual / Damaged</option>
+                    </select>
+                </div>
+                <div class="col-lg-2 col-md-4">
+                    <input type="date" name="date_from" class="form-control form-control-sm" title="From Date" value="{{ current_date_from }}">
+                </div>
+                <div class="col-lg-2 col-md-4">
+                    <input type="date" name="date_to" class="form-control form-control-sm" title="To Date" value="{{ current_date_to }}">
+                </div>
+                <div class="col-lg-1 col-md-12 d-flex gap-2">
+                    <button type="submit" class="btn btn-dark btn-sm flex-grow-1" title="Apply Filter">
+                        <i class="bi bi-funnel-fill"></i>
+                    </button>
+                    {% if current_search or (current_movement_type and current_movement_type != 'ALL') or (current_reference_type and current_reference_type != 'ALL') or current_date_from or current_date_to %}
+                    <a href="{{ url_for('inventory.movements') }}" class="btn btn-outline-secondary btn-sm" title="Reset Filters">
+                        <i class="bi bi-arrow-counterclockwise"></i>
+                    </a>
+                    {% endif %}
+                </div>
+            </form>
+
+            <!-- Movements Table -->
+            <div class="table-responsive">
+                <table class="vl-table">
+                    <thead>
+                        <tr>
+                            <th>Date & Time</th>
+                            <th>Garment Product</th>
+                            <th>SKU / Variant</th>
+                            <th>Movement Type</th>
+                            <th class="text-center">Delta (Qty)</th>
+                            <th>Reference</th>
+                            <th>Recorded By</th>
+                            <th>Notes / Remarks</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if movements %}
+                            {% for m in movements %}
+                            <tr>
+                                <td>
+                                    <span class="text-nowrap small text-dark fw-medium">
+                                        {{ m.movement_date.strftime('%d %b %Y, %I:%M %p') if m.movement_date else '—' }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <a href="{{ url_for('products.view', product_id=m.product_id) }}" class="fw-semibold text-danger text-decoration-none">
+                                        {{ m.product_name }}
+                                    </a>
+                                </td>
+                                <td>
+                                    <span class="font-monospace fw-medium text-dark">{{ m.sku }}</span>
+                                    <div class="text-muted small">{{ m.color }} / {{ m.size }}</div>
+                                </td>
+                                <td>
+                                    {% if m.movement_type == 'PURCHASE' %}
+                                        <span class="badge bg-primary-subtle text-primary border border-primary-subtle font-monospace">
+                                            <i class="bi bi-bag-plus me-1"></i>PURCHASE
+                                        </span>
+                                    {% elif m.movement_type == 'SALE' %}
+                                        <span class="badge bg-dark-subtle text-dark border font-monospace">
+                                            <i class="bi bi-cart-dash me-1"></i>SALE
+                                        </span>
+                                    {% elif m.movement_type == 'ADJUSTMENT' %}
+                                        <span class="badge bg-info-subtle text-info border border-info-subtle font-monospace">
+                                            <i class="bi bi-sliders me-1"></i>ADJUSTMENT
+                                        </span>
+                                    {% elif m.movement_type == 'DAMAGE' %}
+                                        <span class="badge bg-danger-subtle text-danger border border-danger-subtle font-monospace">
+                                            <i class="bi bi-x-octagon me-1"></i>DAMAGE
+                                        </span>
+                                    {% elif m.movement_type == 'OPENING' %}
+                                        <span class="badge bg-secondary-subtle text-secondary border font-monospace">
+                                            <i class="bi bi-flag me-1"></i>OPENING
+                                        </span>
+                                    {% elif m.movement_type == 'CUSTOMER_RETURN' %}
+                                        <span class="badge bg-success-subtle text-success border border-success-subtle font-monospace">
+                                            <i class="bi bi-arrow-return-left me-1"></i>RETURN
+                                        </span>
+                                    {% else %}
+                                        <span class="badge bg-light text-dark border font-monospace">{{ m.movement_type }}</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-center">
+                                    <span class="fs-6 fw-bold {% if m.quantity > 0 %}text-success{% else %}text-danger{% endif %} font-monospace">
+                                        {{ "%+d"|format(m.quantity) }}
+                                    </span>
+                                    <span class="small text-muted">pcs</span>
+                                </td>
+                                <td>
+                                    {% if m.reference_type == 'PURCHASE' and m.reference_id %}
+                                        <a href="{{ url_for('purchases.view', purchase_id=m.reference_id) }}" class="text-decoration-none small badge bg-light text-danger border">
+                                            <i class="bi bi-receipt me-1"></i>Purchase #{{ m.reference_id }}
+                                        </a>
+                                    {% elif m.reference_type == 'SALE' and m.reference_id %}
+                                        <span class="badge bg-light text-dark border small">
+                                            <i class="bi bi-cart me-1"></i>Sale #{{ m.reference_id }}
+                                        </span>
+                                    {% else %}
+                                        <span class="badge bg-light text-muted border small">{{ m.reference_type or 'MANUAL' }}</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span class="small text-muted"><i class="bi bi-person me-1"></i>{{ m.created_by_name }}</span>
+                                </td>
+                                <td>
+                                    <span class="small text-muted fst-italic">{{ m.notes or '—' }}</span>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="8" class="text-center py-5">
+                                    <div class="text-muted">
+                                        <i class="bi bi-journal-x fs-1 d-block mb-3 text-secondary"></i>
+                                        <h5>No Stock Movements Found</h5>
+                                        <p class="mb-0">No transaction logs match your filter criteria.</p>
+                                    </div>
+                                </td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

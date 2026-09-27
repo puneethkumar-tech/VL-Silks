@@ -1,0 +1,186 @@
+{% extends "base.html" %}
+
+{% block title %}User Management – VL Silks{% endblock %}
+{% block header_title %}User Management{% endblock %}
+
+{% block content %}
+<!-- Summary Metric Cards -->
+<div class="row g-3 mb-4">
+    <div class="col-md-3 col-sm-6">
+        <div class="vl-stat-card h-100">
+            <div class="vl-stat-header">
+                <span class="vl-stat-title">Total Users</span>
+                <span class="vl-stat-icon"><i class="bi bi-people-fill"></i></span>
+            </div>
+            <div class="vl-stat-value">{{ total_users_count }}</div>
+            <div class="vl-stat-subtext">Registered system accounts</div>
+        </div>
+    </div>
+    <div class="col-md-3 col-sm-6">
+        <div class="vl-stat-card h-100">
+            <div class="vl-stat-header">
+                <span class="vl-stat-title">Active Users</span>
+                <span class="vl-stat-icon"><i class="bi bi-check-circle-fill"></i></span>
+            </div>
+            <div class="vl-stat-value">{{ active_users_count }}</div>
+            <div class="vl-stat-subtext">Currently authorized to log in</div>
+        </div>
+    </div>
+    <div class="col-md-3 col-sm-6">
+        <div class="vl-stat-card h-100">
+            <div class="vl-stat-header">
+                <span class="vl-stat-title">Staff Members</span>
+                <span class="vl-stat-icon"><i class="bi bi-person-badge"></i></span>
+            </div>
+            <div class="vl-stat-value">{{ staff_count }}</div>
+            <div class="vl-stat-subtext">POS & Inventory operators</div>
+        </div>
+    </div>
+    <div class="col-md-3 col-sm-6">
+        <div class="vl-stat-card h-100">
+            <div class="vl-stat-header">
+                <span class="vl-stat-title">Administrators</span>
+                <span class="vl-stat-icon"><i class="bi bi-shield-lock-fill"></i></span>
+            </div>
+            <div class="vl-stat-value">{{ admin_count }}</div>
+            <div class="vl-stat-subtext">Full system access</div>
+        </div>
+    </div>
+</div>
+
+<!-- Main Users Table Card -->
+<div class="vl-card">
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
+        <div>
+            <h2 class="h5 brand-font mb-1"><i class="bi bi-person-gear me-2 text-danger"></i> System Users</h2>
+            <p class="text-muted small mb-0">Manage employee and administrator logins, permissions, and status</p>
+        </div>
+        <div>
+            <a href="{{ url_for('users.new') }}" class="vl-btn-maroon">
+                <i class="bi bi-person-plus-fill"></i> <span>Add New User</span>
+            </a>
+        </div>
+    </div>
+
+    <!-- Search & Filters -->
+    <form method="GET" action="{{ url_for('users.index') }}" class="row g-2 mb-4 p-3 bg-light rounded border">
+        <div class="col-lg-6 col-md-5">
+            <div class="input-group">
+                <span class="input-group-text bg-white border-end-0"><i class="bi bi-search text-muted"></i></span>
+                <input type="text" name="search" class="form-control border-start-0"
+                    placeholder="Search by user name or email..."
+                    value="{{ current_search }}">
+            </div>
+        </div>
+        <div class="col-lg-2 col-md-3">
+            <select name="role" class="form-select">
+                <option value="ALL" {% if current_role == 'ALL' %}selected{% endif %}>All Roles</option>
+                <option value="ADMIN" {% if current_role == 'ADMIN' %}selected{% endif %}>Admin Only</option>
+                <option value="STAFF" {% if current_role == 'STAFF' %}selected{% endif %}>Staff Only</option>
+            </select>
+        </div>
+        <div class="col-lg-2 col-md-2">
+            <select name="status" class="form-select">
+                <option value="ALL" {% if current_status == 'ALL' %}selected{% endif %}>All Statuses</option>
+                <option value="ACTIVE" {% if current_status == 'ACTIVE' %}selected{% endif %}>Active Only</option>
+                <option value="INACTIVE" {% if current_status == 'INACTIVE' %}selected{% endif %}>Inactive Only</option>
+            </select>
+        </div>
+        <div class="col-lg-2 col-md-2 d-flex gap-2">
+            <button type="submit" class="btn btn-dark w-100">
+                <i class="bi bi-funnel-fill me-1"></i> Filter
+            </button>
+            {% if current_search or (current_role and current_role != 'ALL') or (current_status and current_status != 'ALL') %}
+            <a href="{{ url_for('users.index') }}" class="btn btn-outline-secondary" title="Reset filters">
+                <i class="bi bi-arrow-counterclockwise"></i>
+            </a>
+            {% endif %}
+        </div>
+    </form>
+
+    <!-- Users Table -->
+    <div class="table-responsive">
+        <table class="vl-table align-middle">
+            <thead>
+                <tr>
+                    <th>User ID</th>
+                    <th>Name & Email</th>
+                    <th>Role</th>
+                    <th>Status</th>
+                    <th>Created On</th>
+                    <th class="text-end">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if users %}
+                    {% for u in users %}
+                    <tr>
+                        <td class="fw-semibold text-muted">#{{ u.user_id }}</td>
+                        <td>
+                            <div class="d-flex align-items-center gap-2">
+                                <div class="rounded-circle d-flex align-items-center justify-content-center text-white fw-bold"
+                                     style="width: 36px; height: 36px; background-color: {% if u.role == 'ADMIN' %}#8B0000{% else %}#4A5568{% endif %}; font-size: 0.9rem;">
+                                    {{ u.name[0] | upper }}
+                                </div>
+                                <div>
+                                    <div class="fw-bold text-dark">{{ u.name }}</div>
+                                    <div class="small text-muted"><i class="bi bi-envelope me-1"></i>{{ u.email }}</div>
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            {% if u.role == 'ADMIN' %}
+                                <span class="badge" style="background-color: #8B0000; color: #FFF8E1; font-weight: 600; padding: 6px 10px;">
+                                    <i class="bi bi-shield-lock-fill me-1"></i> Administrator
+                                </span>
+                            {% else %}
+                                <span class="badge bg-secondary text-light" style="font-weight: 500; padding: 6px 10px;">
+                                    <i class="bi bi-person me-1"></i> Staff Member
+                                </span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if u.status == 'ACTIVE' %}
+                                <span class="vl-badge vl-badge-active"><i class="bi bi-check-circle-fill me-1"></i> Active</span>
+                            {% else %}
+                                <span class="vl-badge bg-secondary text-white"><i class="bi bi-dash-circle-fill me-1"></i> Inactive</span>
+                            {% endif %}
+                        </td>
+                        <td class="small text-muted">
+                            {{ u.created_at.strftime('%d %b %Y, %I:%M %p') if u.created_at else '—' }}
+                        </td>
+                        <td class="text-end">
+                            <div class="btn-group btn-group-sm">
+                                <a href="{{ url_for('users.edit', user_id=u.user_id) }}" class="btn btn-outline-secondary" title="Edit User">
+                                    <i class="bi bi-pencil"></i> Edit
+                                </a>
+                                <form action="{{ url_for('users.toggle_status', user_id=u.user_id) }}" method="POST" class="d-inline">
+                                    <button type="submit" class="btn btn-outline-{{ 'danger' if u.status == 'ACTIVE' else 'success' }}"
+                                            title="{{ 'Deactivate' if u.status == 'ACTIVE' else 'Activate' }}"
+                                            data-vl-confirm
+                                            data-vl-title="Change User Status"
+                                            data-vl-message="Are you sure you want to {{ 'deactivate' if u.status == 'ACTIVE' else 'activate' }} user {{ u.name }}?"
+                                            data-vl-icon="{{ '⚠️' if u.status == 'ACTIVE' else '✅' }}"
+                                            data-vl-confirm-text="{{ 'Deactivate' if u.status == 'ACTIVE' else 'Activate' }}"
+                                            data-vl-confirm-class="{{ 'vl-confirm-danger' if u.status == 'ACTIVE' else 'vl-confirm-success' }}">
+                                        <i class="bi bi-power"></i>
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr>
+                        <td colspan="6" class="text-center py-5 text-muted">
+                            <i class="bi bi-people fs-2 d-block mb-2 text-secondary"></i>
+                            <div class="fw-semibold">No users found.</div>
+                            <div class="small">Try adjusting your filters or create a new user account.</div>
+                        </td>
+                    </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

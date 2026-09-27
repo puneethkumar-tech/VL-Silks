@@ -1,0 +1,612 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard – Shop Overview{% endblock %}
+{% block header_title %}Shop Performance Dashboard{% endblock %}
+
+{% block extra_css %}
+<style>
+    .vl-dashboard-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1.25rem;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+    }
+    .chart-container {
+        position: relative;
+        height: 280px;
+        width: 100%;
+    }
+    .stat-badge-trend {
+        font-size: 0.75rem;
+        padding: 2px 8px;
+        border-radius: 12px;
+    }
+    .top-product-rank {
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.75rem;
+        font-weight: 700;
+    }
+    .rank-1 { background-color: #D4AF37; color: #4A0404; }
+    .rank-2 { background-color: #C0C0C0; color: #333333; }
+    .rank-3 { background-color: #CD7F32; color: #FFFFFF; }
+    .rank-other { background-color: #F0E6D2; color: #666666; }
+    .refresh-btn.spinning i {
+        animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin {
+        100% { transform: rotate(360deg); }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="vl-dashboard-header">
+    <div>
+        <span class="text-muted small"><i class="bi bi-clock-history me-1"></i> Live Metrics Overview</span>
+        <span class="badge bg-light text-secondary ms-2 border" id="lastUpdatedBadge">Updated: Just now</span>
+    </div>
+    <div class="d-flex gap-2">
+        <button type="button" class="btn btn-sm btn-outline-secondary refresh-btn" id="btnRefreshDashboard" title="Refresh Dashboard Stats">
+            <i class="bi bi-arrow-clockwise me-1"></i> <span id="refreshBtnText">Refresh Stats</span>
+        </button>
+        <a href="{{ url_for('sales.new') }}" class="btn btn-sm vl-btn-gold">
+            <i class="bi bi-plus-circle me-1"></i> New Billing Invoice
+        </a>
+    </div>
+</div>
+
+<!-- Top KPI Summary Cards -->
+<div class="row g-3 mb-4">
+    <!-- Stat 1: Today's Sales -->
+    <div class="col-xl-3 col-md-6">
+        <div class="vl-stat-card h-100">
+            <div class="vl-stat-header">
+                <span class="vl-stat-title">Today's Sales</span>
+                <span class="vl-stat-icon"><i class="bi bi-currency-rupee"></i></span>
+            </div>
+            <div class="vl-stat-value text-dark" id="statTodaySales">₹{{ "{:,.2f}".format(summary.today_sales or 0) }}</div>
+            <div class="vl-stat-subtext d-flex justify-content-between align-items-center">
+                <span id="statTodayCount">{{ summary.today_sales_count or 0 }} invoice(s) today</span>
+                {% if summary.today_returns_amount > 0 %}
+                <span class="badge bg-warning bg-opacity-10 text-warning text-dark small" title="Net Sales after returns">Net: ₹{{ "{:,.2f}".format(summary.today_net_sales or 0) }}</span>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Stat 2: This Month's Sales -->
+    <div class="col-xl-3 col-md-6">
+        <div class="vl-stat-card h-100">
+            <div class="vl-stat-header">
+                <span class="vl-stat-title">This Month's Sales</span>
+                <span class="vl-stat-icon"><i class="bi bi-graph-up-arrow"></i></span>
+            </div>
+            <div class="vl-stat-value text-dark" id="statMonthSales">₹{{ "{:,.2f}".format(summary.month_sales or 0) }}</div>
+            <div class="vl-stat-subtext d-flex justify-content-between align-items-center">
+                <span id="statMonthCount">{{ summary.month_sales_count or 0 }} invoice(s) this month</span>
+                <span class="text-success small fw-semibold"><i class="bi bi-check2-circle"></i> Active</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Stat 3: Stock in Shop -->
+    <div class="col-xl-3 col-md-6">
+        <div class="vl-stat-card h-100">
+            <div class="vl-stat-header">
+                <span class="vl-stat-title">Total Stock in Shop</span>
+                <span class="vl-stat-icon"><i class="bi bi-boxes"></i></span>
+            </div>
+            <div class="vl-stat-value text-dark" id="statTotalStock">{{ summary.total_stock }} <span class="fs-6 fw-normal text-muted">pcs</span></div>
+            <div class="vl-stat-subtext d-flex justify-content-between align-items-center">
+                <span id="statVariantsCount">{{ summary.total_variants }} variants ({{ summary.total_products }} products)</span>
+                {% if summary.low_stock_count > 0 %}
+                <span class="badge bg-danger text-white" id="statLowStockBadge">{{ summary.low_stock_count }} Low</span>
+                {% else %}
+                <span class="badge bg-success bg-opacity-10 text-success" id="statLowStockBadge">Healthy</span>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Stat 4: Total Credit to Collect (KEY BUSINESS METRIC) -->
+    <div class="col-xl-3 col-md-6">
+        <div class="vl-stat-card stat-credit h-100">
+            <div class="vl-stat-header">
+                <span class="vl-stat-title text-danger fw-bold"><i class="bi bi-exclamation-triangle-fill text-danger me-1"></i> Credit / Udhaar to Collect</span>
+                <span class="vl-stat-icon bg-danger bg-opacity-10 text-danger"><i class="bi bi-journal-bookmark"></i></span>
+            </div>
+            <div class="vl-stat-value text-danger" id="statCreditToCollect">₹{{ "{:,.2f}".format(summary.total_credit_to_collect or 0) }}</div>
+            <div class="vl-stat-subtext text-danger fw-semibold d-flex justify-content-between align-items-center">
+                <span id="statCreditCustomers">{{ summary.customers_with_credit }} customer(s) pending</span>
+                <a href="{{ url_for('credit.index') }}" class="small text-danger text-decoration-underline">Manage &rarr;</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Interactive Analytics Charts Section -->
+<div class="row g-4 mb-4">
+    <!-- Chart 1: Monthly Sales Trend -->
+    <div class="col-lg-8">
+        <div class="vl-card h-100 mb-0">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <div>
+                    <h2 class="h5 brand-font mb-1"><i class="bi bi-bar-chart-line me-2 text-danger"></i> Monthly Sales & Revenue Trend</h2>
+                    <p class="text-muted small mb-0">6-Month revenue tracking with collected vs credit sales breakdown</p>
+                </div>
+                <div class="badge bg-light text-dark border">Past 6 Months</div>
+            </div>
+            <div class="chart-container">
+                <canvas id="monthlySalesChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Chart 2: Category Revenue Breakdown -->
+    <div class="col-lg-4">
+        <div class="vl-card h-100 mb-0">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <div>
+                    <h2 class="h5 brand-font mb-1"><i class="bi bi-pie-chart me-2 text-warning"></i> Category Sales</h2>
+                    <p class="text-muted small mb-0">Revenue distribution by garment category</p>
+                </div>
+            </div>
+            <div class="chart-container">
+                <canvas id="categoryDistributionChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Bento Grid: Tables and Operations -->
+<div class="row g-4 mb-4">
+    <!-- Left Column: Recent Sales Table -->
+    <div class="col-lg-8">
+        <div class="vl-card h-100 mb-0">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <div>
+                    <h2 class="h5 brand-font mb-1"><i class="bi bi-receipt me-2 text-danger"></i> Recent Sales Transactions</h2>
+                    <p class="text-muted small mb-0">Latest completed customer invoices</p>
+                </div>
+                <a href="{{ url_for('sales.index') }}" class="btn btn-sm btn-outline-secondary">View All Invoices &rarr;</a>
+            </div>
+
+            <div class="table-responsive">
+                <table class="vl-table">
+                    <thead>
+                        <tr>
+                            <th>Invoice #</th>
+                            <th>Customer</th>
+                            <th>Date</th>
+                            <th>Amount</th>
+                            <th>Paid</th>
+                            <th>Status</th>
+                            <th class="text-end">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="recentSalesTableBody">
+                        {% if recent_sales %}
+                            {% for sale in recent_sales %}
+                            <tr>
+                                <td class="fw-bold text-dark">{{ sale.invoice_number }}</td>
+                                <td>{{ sale.customer_name or 'Walk-in Customer' }}</td>
+                                <td>{{ sale.sale_date }}</td>
+                                <td class="fw-semibold">₹{{ "{:,.2f}".format(sale.total_amount) }}</td>
+                                <td class="text-success">₹{{ "{:,.2f}".format(sale.paid_amount) }}</td>
+                                <td>
+                                    {% if sale.payment_status == 'PAID' %}
+                                        <span class="vl-badge vl-badge-paid"><i class="bi bi-check-circle me-1"></i> Paid</span>
+                                    {% elif sale.payment_status == 'PARTIAL' %}
+                                        <span class="vl-badge vl-badge-partial"><i class="bi bi-hourglass-split me-1"></i> Partial</span>
+                                    {% else %}
+                                        <span class="vl-badge vl-badge-credit"><i class="bi bi-exclamation-circle me-1"></i> Credit</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-end">
+                                    <a href="{{ url_for('sales.view', sale_id=sale.sale_id) }}" class="btn btn-xs btn-outline-dark" style="font-size: 0.75rem; padding: 2px 8px;">
+                                        <i class="bi bi-eye"></i> View
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="7" class="text-center py-4 text-muted">No recent sales records found.</td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Right Column: Top Products & Quick Operations -->
+    <div class="col-lg-4">
+        <!-- Top Selling Garments -->
+        <div class="vl-card mb-4">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h2 class="h5 brand-font mb-0 text-dark"><i class="bi bi-trophy me-2 text-warning"></i> Top Selling Garments</h2>
+                <span class="badge bg-light text-secondary border">Best Performers</span>
+            </div>
+
+            {% if top_products %}
+                <div class="list-group list-group-flush" id="topProductsList">
+                    {% for p in top_products %}
+                    <div class="list-group-item px-0 py-2 d-flex justify-content-between align-items-center">
+                        <div class="d-flex align-items-center">
+                            <span class="top-product-rank {% if loop.index == 1 %}rank-1{% elif loop.index == 2 %}rank-2{% elif loop.index == 3 %}rank-3{% else %}rank-other{% endif %} me-2">
+                                {{ loop.index }}
+                            </span>
+                            <div>
+                                <div class="fw-semibold small text-dark">{{ p.product_name }}</div>
+                                <div class="text-muted" style="font-size: 0.78rem;">
+                                    {{ p.category_name }} &bull; {{ p.total_units_sold }} pcs sold
+                                </div>
+                            </div>
+                        </div>
+                        <div class="text-end">
+                            <span class="fw-bold text-dark small">₹{{ "{:,.2f}".format(p.total_revenue) }}</span>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <p class="text-muted small my-3">No sales performance data available yet.</p>
+            {% endif %}
+        </div>
+
+        <!-- Low Stock Alerts -->
+        <div class="vl-card mb-4">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h2 class="h5 brand-font mb-0 text-danger"><i class="bi bi-exclamation-diamond me-2"></i> Low Stock Alerts</h2>
+                <a href="{{ url_for('inventory.index') }}" class="badge bg-danger text-white text-decoration-none" id="lowStockCountBadge">{{ low_stock_items | length }} items</a>
+            </div>
+
+            {% if low_stock_items %}
+                <div class="list-group list-group-flush" id="lowStockItemsList">
+                    {% for item in low_stock_items %}
+                    <div class="list-group-item px-0 py-2 d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="fw-semibold small text-dark">{{ item.product_name }}</div>
+                            <div class="text-muted" style="font-size: 0.78rem;">
+                                {{ item.size }} &bull; {{ item.color }} ({{ item.sku }})
+                            </div>
+                        </div>
+                        <div class="text-end">
+                            <span class="badge bg-warning text-dark fw-bold">{{ item.stock_quantity }} in stock</span>
+                            <div class="text-muted" style="font-size: 0.72rem;">Min: {{ item.minimum_stock }}</div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <p class="text-muted small my-3" id="noLowStockMsg">All garment stock levels are healthy.</p>
+            {% endif %}
+        </div>
+
+        <!-- Quick Operations -->
+        <div class="vl-card mb-0">
+            <h2 class="h5 brand-font mb-3"><i class="bi bi-lightning-charge me-2 text-warning"></i> Quick Operations</h2>
+            <div class="d-grid gap-2">
+                <a href="{{ url_for('sales.new') }}" class="btn btn-outline-danger text-start">
+                    <i class="bi bi-receipt-cutoff me-2"></i> Create Billing Invoice (POS)
+                </a>
+                <a href="{{ url_for('credit.index') }}" class="btn btn-outline-dark text-start">
+                    <i class="bi bi-cash-coin me-2"></i> Receive Credit / Udhaar Payment
+                </a>
+                <a href="{{ url_for('purchases.new') }}" class="btn btn-outline-secondary text-start">
+                    <i class="bi bi-truck me-2"></i> Record Supplier Inward / Purchase
+                </a>
+                <a href="{{ url_for('inventory.index') }}" class="btn btn-outline-secondary text-start">
+                    <i class="bi bi-boxes me-2"></i> Manage Stock & Inventory
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Customer Credit Summary Section -->
+<div class="row">
+    <div class="col-12">
+        <div class="vl-card">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <div>
+                    <h2 class="h5 brand-font mb-1"><i class="bi bi-journal-text me-2 text-danger"></i> Customer Credit / Udhaar Summary</h2>
+                    <p class="text-muted small mb-0">Active credit accounts requiring collection and settlement</p>
+                </div>
+                <a href="{{ url_for('credit.index') }}" class="vl-btn-gold btn-sm">
+                    <i class="bi bi-journal-check me-1"></i> Open Credit Ledger
+                </a>
+            </div>
+
+            <div class="table-responsive">
+                <table class="vl-table">
+                    <thead>
+                        <tr>
+                            <th>Customer Name</th>
+                            <th>Contact Phone</th>
+                            <th>Credit Limit</th>
+                            <th>Outstanding Balance</th>
+                            <th class="text-end">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if credit_customers %}
+                            {% for cust in credit_customers %}
+                            <tr>
+                                <td class="fw-bold text-dark">{{ cust.customer_name }}</td>
+                                <td><i class="bi bi-telephone text-muted me-1"></i> {{ cust.phone }}</td>
+                                <td class="text-muted">₹{{ "{:,.2f}".format(cust.credit_limit) }}</td>
+                                <td class="fw-bold text-danger">₹{{ "{:,.2f}".format(cust.outstanding_balance) }}</td>
+                                <td class="text-end">
+                                    <div class="btn-group btn-group-sm">
+                                        <a href="{{ url_for('credit.index') }}" class="btn btn-outline-danger">Record Payment</a>
+                                        <a href="{{ url_for('pdf.web_download_credit_statement', customer_id=cust.customer_id) }}" class="btn btn-outline-secondary" target="_blank">
+                                            <i class="bi bi-file-earmark-pdf"></i> Statement
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="5" class="text-center py-4 text-muted">No outstanding customer credit balances.</td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- Chart.js CDN -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // 1. Initial Monthly Sales Data from Server
+    const initialMonthly = {{ monthly_sales | tojson }};
+    const initialCategory = {{ category_dist | tojson }};
+
+    // Indian Rupee Formatter helper
+    const formatINR = (val) => '₹' + Number(val || 0).toLocaleString('en-IN', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+    });
+
+    // 2. Initialize Monthly Sales Trend Chart
+    const monthlyCtx = document.getElementById('monthlySalesChart').getContext('2d');
+    const monthlyChart = new Chart(monthlyCtx, {
+        type: 'bar',
+        data: {
+            labels: initialMonthly.labels || [],
+            datasets: [
+                {
+                    label: 'Total Sales (₹)',
+                    data: initialMonthly.sales || [],
+                    backgroundColor: 'rgba(139, 0, 0, 0.85)', // Deep Maroon
+                    borderColor: '#700000',
+                    borderWidth: 1,
+                    borderRadius: 4,
+                    order: 2
+                },
+                {
+                    label: 'Paid / Cash Collected (₹)',
+                    data: initialMonthly.paid || [],
+                    backgroundColor: 'rgba(212, 175, 55, 0.75)', // Regal Gold
+                    borderColor: '#B8860B',
+                    borderWidth: 1,
+                    borderRadius: 4,
+                    order: 3
+                },
+                {
+                    label: 'Credit / Udhaar (₹)',
+                    data: initialMonthly.credit || [],
+                    type: 'line',
+                    borderColor: '#D32F2F',
+                    backgroundColor: 'rgba(211, 47, 47, 0.1)',
+                    borderWidth: 2,
+                    pointBackgroundColor: '#D32F2F',
+                    pointRadius: 4,
+                    fill: false,
+                    tension: 0.3,
+                    order: 1
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'top',
+                    labels: {
+                        boxWidth: 12,
+                        font: { family: 'Inter', size: 11 }
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            let label = context.dataset.label || '';
+                            if (label) {
+                                label += ': ';
+                            }
+                            if (context.parsed.y !== null) {
+                                label += formatINR(context.parsed.y);
+                            }
+                            return label;
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    grid: { display: false },
+                    ticks: { font: { family: 'Inter', size: 11 } }
+                },
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        font: { family: 'Inter', size: 11 },
+                        callback: function(value) {
+                            if (value >= 100000) return '₹' + (value / 100000).toFixed(1) + 'L';
+                            if (value >= 1000) return '₹' + (value / 1000).toFixed(0) + 'k';
+                            return '₹' + value;
+                        }
+                    },
+                    grid: { color: 'rgba(0,0,0,0.05)' }
+                }
+            }
+        }
+    });
+
+    // 3. Initialize Category Distribution Donut Chart
+    const categoryCtx = document.getElementById('categoryDistributionChart').getContext('2d');
+    const categoryColors = [
+        '#8B0000', // Deep Maroon
+        '#D4AF37', // Gold
+        '#4A0404', // Dark Silk
+        '#E67E22', // Amber Orange
+        '#2E7D32', // Forest Green
+        '#1E88E5', // Royal Blue
+        '#8E44AD', // Purple
+        '#795548'  // Earth Brown
+    ];
+
+    const hasInitialCatData = initialCategory && initialCategory.categories && initialCategory.categories.length > 0;
+    const categoryChart = new Chart(categoryCtx, {
+        type: 'doughnut',
+        data: {
+            labels: hasInitialCatData ? initialCategory.categories : ['No Sales Data'],
+            datasets: [{
+                data: hasInitialCatData ? initialCategory.revenue : [1],
+                backgroundColor: hasInitialCatData ? categoryColors.slice(0, initialCategory.categories.length) : ['#E0E0E0'],
+                borderWidth: 2,
+                borderColor: '#FFFFFF'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        boxWidth: 10,
+                        font: { family: 'Inter', size: 11 },
+                        padding: 12
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            if (!hasInitialCatData) {
+                                return ' No sales data recorded yet';
+                            }
+                            const val = context.parsed;
+                            return ` ${context.label}: ${formatINR(val)}`;
+                        }
+                    }
+                }
+            },
+            cutout: '65%'
+        }
+    });
+
+    // 4. Real-time Refresh Functionality
+    const refreshBtn = document.getElementById('btnRefreshDashboard');
+    const refreshText = document.getElementById('refreshBtnText');
+    const lastUpdatedBadge = document.getElementById('lastUpdatedBadge');
+
+    async function refreshDashboardData() {
+        if (!refreshBtn) return;
+        refreshBtn.classList.add('spinning');
+        refreshBtn.disabled = true;
+        if (refreshText) refreshText.innerText = 'Refreshing...';
+
+        try {
+            // Fetch live summary metrics
+            const summaryRes = await fetch('/api/dashboard/summary');
+            if (summaryRes.ok) {
+                const json = await summaryRes.json();
+                if (json.status === 'success' && json.data) {
+                    const d = json.data;
+                    document.getElementById('statTodaySales').innerText = formatINR(d.today_sales);
+                    document.getElementById('statTodayCount').innerText = `${d.today_sales_count} invoice(s) today`;
+                    document.getElementById('statMonthSales').innerText = formatINR(d.month_sales);
+                    document.getElementById('statMonthCount').innerText = `${d.month_sales_count} invoice(s) this month`;
+                    document.getElementById('statTotalStock').innerHTML = `${d.total_stock} <span class="fs-6 fw-normal text-muted">pcs</span>`;
+                    document.getElementById('statVariantsCount').innerText = `${d.total_variants} variants (${d.total_products} products)`;
+                    document.getElementById('statCreditToCollect').innerText = formatINR(d.total_credit_to_collect);
+                    document.getElementById('statCreditCustomers').innerText = `${d.customers_with_credit} customer(s) pending`;
+
+                    const lowStockBadge = document.getElementById('statLowStockBadge');
+                    if (lowStockBadge) {
+                        if (d.low_stock_count > 0) {
+                            lowStockBadge.className = 'badge bg-danger text-white';
+                            lowStockBadge.innerText = `${d.low_stock_count} Low`;
+                        } else {
+                            lowStockBadge.className = 'badge bg-success bg-opacity-10 text-success';
+                            lowStockBadge.innerText = 'Healthy';
+                        }
+                    }
+                }
+            }
+
+            // Fetch live monthly chart data
+            const monthlyRes = await fetch('/api/dashboard/monthly-sales?months=6');
+            if (monthlyRes.ok) {
+                const mJson = await monthlyRes.json();
+                if (mJson.status === 'success' && mJson.data) {
+                    monthlyChart.data.labels = mJson.data.labels;
+                    monthlyChart.data.datasets[0].data = mJson.data.sales;
+                    monthlyChart.data.datasets[1].data = mJson.data.paid;
+                    monthlyChart.data.datasets[2].data = mJson.data.credit;
+                    monthlyChart.update();
+                }
+            }
+
+            // Fetch live category distribution
+            const catRes = await fetch('/api/dashboard/category-distribution');
+            if (catRes.ok) {
+                const cJson = await catRes.json();
+                if (cJson.status === 'success' && cJson.data) {
+                    const hasLiveCat = cJson.data.categories && cJson.data.categories.length > 0;
+                    categoryChart.data.labels = hasLiveCat ? cJson.data.categories : ['No Sales Data'];
+                    categoryChart.data.datasets[0].data = hasLiveCat ? cJson.data.revenue : [1];
+                    categoryChart.data.datasets[0].backgroundColor = hasLiveCat ? categoryColors.slice(0, cJson.data.categories.length) : ['#E0E0E0'];
+                    categoryChart.update();
+                }
+            }
+
+            // Update timestamp
+            const now = new Date();
+            const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            if (lastUpdatedBadge) {
+                lastUpdatedBadge.innerText = `Updated: ${timeStr}`;
+            }
+        } catch (err) {
+            console.error('Error refreshing dashboard stats:', err);
+        } finally {
+            refreshBtn.classList.remove('spinning');
+            refreshBtn.disabled = false;
+            if (refreshText) refreshText.innerText = 'Refresh Stats';
+        }
+    }
+
+    if (refreshBtn) {
+        refreshBtn.addEventListener('click', refreshDashboardData);
+    }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,268 @@
+{% extends "base.html" %}
+
+{% block title %}Add New Garment – VL Silks{% endblock %}
+{% block header_title %}Add New Garment Product{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-12">
+        <div class="d-flex align-items-center justify-content-between mb-3">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-0">
+                    <li class="breadcrumb-item"><a href="{{ url_for('products.index') }}" class="text-decoration-none text-danger">Products</a></li>
+                    <li class="breadcrumb-item active">New Garment</li>
+                </ol>
+            </nav>
+            <a href="{{ url_for('products.index') }}" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-arrow-left me-1"></i> Back to Catalog
+            </a>
+        </div>
+
+        <form action="{{ url_for('products.new') }}" method="POST" id="productForm">
+            <!-- 1. Base Garment Details Card -->
+            <div class="vl-card mb-4">
+                <h2 class="h5 brand-font mb-3 text-danger"><i class="bi bi-info-circle-fill me-2"></i> 1. Base Garment Details</h2>
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="vl-form-label" for="product_name">Garment Name <span class="text-danger">*</span></label>
+                        <input type="text" id="product_name" name="product_name" class="vl-form-input" placeholder="e.g. Kanchipuram Pure Zari Silk Saree" required value="{{ form_data.get('product_name', '') }}">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="vl-form-label" for="category_id">Category <span class="text-danger">*</span></label>
+                        <select id="category_id" name="category_id" class="form-select" required>
+                            <option value="">-- Select Category --</option>
+                            {% for cat in categories %}
+                                <option value="{{ cat.category_id }}" {% if form_data.get('category_id')|string == cat.category_id|string %}selected{% endif %}>
+                                    {{ cat.category_name }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="vl-form-label" for="brand">Brand</label>
+                        <input type="text" id="brand" name="brand" class="vl-form-input" placeholder="VL Silks" value="{{ form_data.get('brand', 'VL Silks') }}">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="vl-form-label" for="material">Fabric / Material</label>
+                        <input type="text" id="material" name="material" class="vl-form-input" placeholder="e.g. Pure Mulberry Silk, 100% Giza Cotton" value="{{ form_data.get('material', '') }}">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="vl-form-label" for="status">Catalog Status</label>
+                        <select id="status" name="status" class="form-select">
+                            <option value="ACTIVE" {% if form_data.get('status', 'ACTIVE') == 'ACTIVE' %}selected{% endif %}>Active (Visible for sales)</option>
+                            <option value="INACTIVE" {% if form_data.get('status') == 'INACTIVE' %}selected{% endif %}>Inactive (Hidden)</option>
+                        </select>
+                    </div>
+                    <div class="col-12">
+                        <label class="vl-form-label" for="description">Garment Description / Weaving Details</label>
+                        <textarea id="description" name="description" class="form-control" rows="2" placeholder="Optional garment details, zari grade, washing instructions, occasion...">{{ form_data.get('description', '') }}</textarea>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2. Product Variants (Sizes & Colors) Card -->
+            <div class="vl-card mb-4">
+                <div class="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-2 mb-3">
+                    <div>
+                        <h2 class="h5 brand-font mb-1 text-danger"><i class="bi bi-diagram-3-fill me-2"></i> 2. Size & Color Variants</h2>
+                        <p class="text-muted small mb-0">Every garment must have at least one variant with unique SKU and independent stock</p>
+                    </div>
+                    <button type="button" class="vl-btn-gold btn-sm" id="addVariantBtn">
+                        <i class="bi bi-plus-circle"></i> + Add Variant Row
+                    </button>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="vl-table" id="variantsTable">
+                        <thead>
+                            <tr>
+                                <th style="min-width: 150px;">SKU / Code <span class="text-danger">*</span></th>
+                                <th style="min-width: 110px;">Size <span class="text-danger">*</span></th>
+                                <th style="min-width: 130px;">Color <span class="text-danger">*</span></th>
+                                <th style="min-width: 130px;">Purchase (₹)</th>
+                                <th style="min-width: 130px;">Selling (₹) <span class="text-danger">*</span></th>
+                                <th style="min-width: 110px;">Initial Stock</th>
+                                <th style="min-width: 110px;">Min Stock</th>
+                                <th style="min-width: 140px;">Barcode (Opt)</th>
+                                <th style="width: 50px;"></th>
+                            </tr>
+                        </thead>
+                        <tbody id="variantsTableBody">
+                            <!-- Variant Row Template Populated by JS or Server -->
+                            {% if variants_data %}
+                                {% for v in variants_data %}
+                                <tr class="variant-row">
+                                    <td>
+                                        <input type="text" name="variant_sku[]" class="form-control form-control-sm variant-sku" placeholder="e.g. KAN-RED-FS" required value="{{ v.sku }}">
+                                    </td>
+                                    <td>
+                                        <input type="text" name="variant_size[]" class="form-control form-control-sm" placeholder="Free Size / M / 40" required value="{{ v.size }}">
+                                    </td>
+                                    <td>
+                                        <input type="text" name="variant_color[]" class="form-control form-control-sm" placeholder="e.g. Crimson Red" required value="{{ v.color }}">
+                                    </td>
+                                    <td>
+                                        <input type="number" step="0.01" min="0" name="variant_purchase_price[]" class="form-control form-control-sm" placeholder="0.00" value="{{ v.purchase_price }}">
+                                    </td>
+                                    <td>
+                                        <input type="number" step="0.01" min="0" name="variant_selling_price[]" class="form-control form-control-sm" placeholder="0.00" required value="{{ v.selling_price }}">
+                                    </td>
+                                    <td>
+                                        <input type="number" min="0" name="variant_stock[]" class="form-control form-control-sm" placeholder="0" value="{{ v.stock_quantity }}">
+                                    </td>
+                                    <td>
+                                        <input type="number" min="0" name="variant_min_stock[]" class="form-control form-control-sm" placeholder="5" value="{{ v.minimum_stock }}">
+                                    </td>
+                                    <td>
+                                        <input type="text" name="variant_barcode[]" class="form-control form-control-sm" placeholder="Barcode" value="{{ v.barcode or '' }}">
+                                    </td>
+                                    <td class="text-center">
+                                        <button type="button" class="btn btn-outline-danger btn-sm remove-variant-btn" title="Remove Variant">
+                                            <i class="bi bi-trash3"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            {% else %}
+                                <tr class="variant-row">
+                                    <td>
+                                        <input type="text" name="variant_sku[]" class="form-control form-control-sm variant-sku" placeholder="e.g. KAN-RED-FS" required>
+                                    </td>
+                                    <td>
+                                        <input type="text" name="variant_size[]" class="form-control form-control-sm" placeholder="Free Size / M / 40" required value="Free Size">
+                                    </td>
+                                    <td>
+                                        <input type="text" name="variant_color[]" class="form-control form-control-sm" placeholder="e.g. Crimson Red" required value="Standard">
+                                    </td>
+                                    <td>
+                                        <input type="number" step="0.01" min="0" name="variant_purchase_price[]" class="form-control form-control-sm" placeholder="0.00" value="0.00">
+                                    </td>
+                                    <td>
+                                        <input type="number" step="0.01" min="0" name="variant_selling_price[]" class="form-control form-control-sm" placeholder="0.00" required>
+                                    </td>
+                                    <td>
+                                        <input type="number" min="0" name="variant_stock[]" class="form-control form-control-sm" placeholder="0" value="0">
+                                    </td>
+                                    <td>
+                                        <input type="number" min="0" name="variant_min_stock[]" class="form-control form-control-sm" placeholder="5" value="5">
+                                    </td>
+                                    <td>
+                                        <input type="text" name="variant_barcode[]" class="form-control form-control-sm" placeholder="Barcode">
+                                    </td>
+                                    <td class="text-center">
+                                        <button type="button" class="btn btn-outline-danger btn-sm remove-variant-btn" title="Remove Variant">
+                                            <i class="bi bi-trash3"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Form Actions -->
+            <div class="d-flex justify-content-end gap-3 mb-5">
+                <a href="{{ url_for('products.index') }}" class="btn btn-outline-secondary px-4">Cancel</a>
+                <button type="submit" class="vl-btn-maroon px-5 py-2 fs-6">
+                    <i class="bi bi-check2-circle"></i> Save Garment & Variants
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const tbody = document.getElementById('variantsTableBody');
+        const addBtn = document.getElementById('addVariantBtn');
+        const form = document.getElementById('productForm');
+
+        // Function to create a new variant row
+        function createVariantRow() {
+            const tr = document.createElement('tr');
+            tr.className = 'variant-row';
+            tr.innerHTML = `
+                <td>
+                    <input type="text" name="variant_sku[]" class="form-control form-control-sm variant-sku" placeholder="e.g. SKU-101" required>
+                </td>
+                <td>
+                    <input type="text" name="variant_size[]" class="form-control form-control-sm" placeholder="Free Size / M" required value="Free Size">
+                </td>
+                <td>
+                    <input type="text" name="variant_color[]" class="form-control form-control-sm" placeholder="e.g. Royal Blue" required>
+                </td>
+                <td>
+                    <input type="number" step="0.01" min="0" name="variant_purchase_price[]" class="form-control form-control-sm" placeholder="0.00" value="0.00">
+                </td>
+                <td>
+                    <input type="number" step="0.01" min="0" name="variant_selling_price[]" class="form-control form-control-sm" placeholder="0.00" required>
+                </td>
+                <td>
+                    <input type="number" min="0" name="variant_stock[]" class="form-control form-control-sm" placeholder="0" value="0">
+                </td>
+                <td>
+                    <input type="number" min="0" name="variant_min_stock[]" class="form-control form-control-sm" placeholder="5" value="5">
+                </td>
+                <td>
+                    <input type="text" name="variant_barcode[]" class="form-control form-control-sm" placeholder="Barcode">
+                </td>
+                <td class="text-center">
+                    <button type="button" class="btn btn-outline-danger btn-sm remove-variant-btn" title="Remove Variant">
+                        <i class="bi bi-trash3"></i>
+                    </button>
+                </td>
+            `;
+            tbody.appendChild(tr);
+            attachRemoveEvents();
+        }
+
+        function attachRemoveEvents() {
+            document.querySelectorAll('.remove-variant-btn').forEach(btn => {
+                btn.onclick = function() {
+                    const rows = tbody.querySelectorAll('.variant-row');
+                    if (rows.length > 1) {
+                        this.closest('tr').remove();
+                    } else {
+                        alert('A product must have at least one size/color variant.');
+                    }
+                };
+            });
+        }
+
+        if (addBtn) {
+            addBtn.addEventListener('click', createVariantRow);
+        }
+        attachRemoveEvents();
+
+        // Client-side pre-validation for duplicate SKUs
+        if (form) {
+            form.addEventListener('submit', function(e) {
+                const skuInputs = document.querySelectorAll('.variant-sku');
+                const skus = new Set();
+                let hasDuplicate = false;
+
+                skuInputs.forEach(input => {
+                    const val = input.value.trim().toUpperCase();
+                    if (val) {
+                        if (skus.has(val)) {
+                            hasDuplicate = true;
+                            input.classList.add('is-invalid');
+                        } else {
+                            skus.add(val);
+                            input.classList.remove('is-invalid');
+                        }
+                    }
+                });
+
+                if (hasDuplicate) {
+                    e.preventDefault();
+                    alert('Error: You have entered duplicate SKUs in the variant list. Each variant SKU must be distinct.');
+                }
+            });
+        }
+    });
+</script>
+{% endblock %}

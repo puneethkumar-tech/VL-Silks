@@ -1,0 +1,196 @@
+{% extends "base.html" %}
+
+{% block title %}Customers – VL Silks{% endblock %}
+{% block header_title %}Customer Directory{% endblock %}
+
+{% block content %}
+<!-- Summary Metric Cards -->
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <div class="vl-stat-card h-100">
+            <div class="vl-stat-header">
+                <span class="vl-stat-title">Total Customers</span>
+                <span class="vl-stat-icon"><i class="bi bi-people-fill"></i></span>
+            </div>
+            <div class="vl-stat-value">{{ metrics.total_customers }}</div>
+            <div class="vl-stat-subtext">Registered customer base</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="vl-stat-card h-100">
+            <div class="vl-stat-header">
+                <span class="vl-stat-title">Active Customers</span>
+                <span class="vl-stat-icon"><i class="bi bi-person-check-fill"></i></span>
+            </div>
+            <div class="vl-stat-value text-success">{{ metrics.active_customers }}</div>
+            <div class="vl-stat-subtext">Eligible for billing & credit</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="vl-stat-card h-100">
+            <div class="vl-stat-header">
+                <span class="vl-stat-title">With Outstanding</span>
+                <span class="vl-stat-icon"><i class="bi bi-exclamation-triangle-fill"></i></span>
+            </div>
+            <div class="vl-stat-value text-warning">{{ metrics.customers_with_balance }}</div>
+            <div class="vl-stat-subtext">Customers with pending balance</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="vl-stat-card h-100">
+            <div class="vl-stat-header">
+                <span class="vl-stat-title">Total Credit Balance</span>
+                <span class="vl-stat-icon"><i class="bi bi-cash-stack"></i></span>
+            </div>
+            <div class="vl-stat-value text-danger">{{ metrics.total_outstanding | currency }}</div>
+            <div class="vl-stat-subtext">Total receivables outstanding</div>
+        </div>
+    </div>
+</div>
+
+<!-- Main Customer Table Card -->
+<div class="vl-card">
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
+        <div>
+            <h2 class="h5 brand-font mb-1"><i class="bi bi-people me-2 text-danger"></i> Customer Directory</h2>
+            <p class="text-muted small mb-0">Manage customer records, contact info, purchase summary, and balance tracking</p>
+        </div>
+        {% if session.get('user_role') == 'ADMIN' %}
+        <div>
+            <a href="{{ url_for('customers.new') }}" class="vl-btn-maroon">
+                <i class="bi bi-person-plus-fill"></i> <span>Add New Customer</span>
+            </a>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Search & Filters -->
+    <form method="GET" action="{{ url_for('customers.index') }}" class="row g-2 mb-4 p-3 bg-light rounded border">
+        <div class="col-lg-7 col-md-6">
+            <div class="input-group">
+                <span class="input-group-text bg-white border-end-0"><i class="bi bi-search text-muted"></i></span>
+                <input type="text" name="search" class="form-control border-start-0"
+                    placeholder="Search by customer name, phone number, or email..."
+                    value="{{ current_search }}">
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-3">
+            <select name="status" class="form-select">
+                <option value="ALL" {% if current_status == 'ALL' %}selected{% endif %}>All Statuses</option>
+                <option value="ACTIVE" {% if current_status == 'ACTIVE' %}selected{% endif %}>Active Only</option>
+                <option value="INACTIVE" {% if current_status == 'INACTIVE' %}selected{% endif %}>Inactive Only</option>
+            </select>
+        </div>
+        <div class="col-lg-2 col-md-3 d-flex gap-2">
+            <button type="submit" class="btn btn-dark w-100">
+                <i class="bi bi-funnel-fill me-1"></i> Filter
+            </button>
+            {% if current_search or (current_status and current_status != 'ALL') %}
+            <a href="{{ url_for('customers.index') }}" class="btn btn-outline-secondary" title="Reset filters">
+                <i class="bi bi-arrow-counterclockwise"></i>
+            </a>
+            {% endif %}
+        </div>
+    </form>
+
+    <!-- Customers Table -->
+    <div class="table-responsive">
+        <table class="vl-table">
+            <thead>
+                <tr>
+                    <th>Customer Name</th>
+                    <th>Phone / Email</th>
+                    <th>Address</th>
+                    <th class="text-center">Total Invoices</th>
+                    <th class="text-end">Total Purchased</th>
+                    <th class="text-end">Total Paid</th>
+                    <th class="text-end">Outstanding Balance</th>
+                    <th>Status</th>
+                    <th class="text-end">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if customers %}
+                    {% for c in customers %}
+                    <tr>
+                        <td>
+                            <a href="{{ url_for('customers.view', customer_id=c.customer_id) }}" class="fw-bold text-dark text-decoration-none fs-6 d-block hover-maroon">
+                                {{ c.customer_name }}
+                            </a>
+                            <div class="text-muted small">ID: #{{ c.customer_id }}</div>
+                        </td>
+                        <td>
+                            <div class="small fw-semibold"><i class="bi bi-telephone me-1 text-muted"></i>{{ c.phone }}</div>
+                            {% if c.email %}
+                            <div class="small text-muted"><i class="bi bi-envelope me-1"></i>{{ c.email }}</div>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="small text-muted">{{ c.address or '—' }}</span>
+                        </td>
+                        <td class="text-center">
+                            <a href="{{ url_for('customers.purchases', customer_id=c.customer_id) }}"
+                               class="badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25 px-2 py-1 text-decoration-none">
+                                {{ c.total_purchases }} invoice(s)
+                            </a>
+                        </td>
+                        <td class="text-end fw-semibold text-dark">
+                            {{ c.total_purchase_value | currency }}
+                        </td>
+                        <td class="text-end text-success fw-semibold">
+                            {{ c.total_paid | currency }}
+                        </td>
+                        <td class="text-end">
+                            {% if c.outstanding_balance > 0 %}
+                                <span class="badge bg-danger text-white px-2 py-1 fs-7">{{ c.outstanding_balance | currency }}</span>
+                            {% else %}
+                                <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 px-2 py-1">₹0.00</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if c.status == 'ACTIVE' %}
+                                <span class="vl-badge vl-badge-active"><i class="bi bi-check-circle-fill me-1"></i> Active</span>
+                            {% else %}
+                                <span class="vl-badge bg-secondary text-white"><i class="bi bi-dash-circle-fill me-1"></i> Inactive</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end">
+                            <div class="btn-group btn-group-sm">
+                                <a href="{{ url_for('customers.view', customer_id=c.customer_id) }}" class="btn btn-outline-primary" title="View Profile & Purchases">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                                {% if session.get('user_role') == 'ADMIN' %}
+                                <a href="{{ url_for('customers.edit', customer_id=c.customer_id) }}" class="btn btn-outline-secondary" title="Edit Customer">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                                <form action="{{ url_for('customers.toggle_status', customer_id=c.customer_id) }}" method="POST" class="d-inline">
+                                    <button type="submit" class="btn btn-outline-{{ 'danger' if c.status == 'ACTIVE' else 'success' }}"
+                                            title="{{ 'Deactivate' if c.status == 'ACTIVE' else 'Activate' }}"
+                                            data-vl-confirm
+                                            data-vl-title="Change Customer Status"
+                                            data-vl-message="Are you sure you want to {{ 'deactivate' if c.status == 'ACTIVE' else 'activate' }} {{ c.customer_name }}? Historical sales will remain intact."
+                                            data-vl-icon="{{ '⚠️' if c.status == 'ACTIVE' else '✅' }}"
+                                            data-vl-confirm-text="{{ 'Deactivate' if c.status == 'ACTIVE' else 'Activate' }}"
+                                            data-vl-confirm-class="{{ 'vl-confirm-danger' if c.status == 'ACTIVE' else 'vl-confirm-success' }}">
+                                        <i class="bi bi-power"></i>
+                                    </button>
+                                </form>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr>
+                        <td colspan="9" class="text-center py-5 text-muted">
+                            <i class="bi bi-people fs-2 d-block mb-2 text-secondary"></i>
+                            <div class="fw-semibold">No customers found.</div>
+                            <div class="small">Try adjusting your search criteria or register a new customer.</div>
+                        </td>
+                    </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

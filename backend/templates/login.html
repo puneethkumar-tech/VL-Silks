@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login – VL Silks Garment Management</title>
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='images/favicon-32.png') }}">
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    
+    <!-- VL Silks Custom CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+</head>
+<body>
+    <div class="vl-login-wrapper">
+        <!-- Brand Presentation Pane -->
+        <div class="vl-login-brand-pane">
+            <div style="max-width: 480px; z-index: 2;">
+                <img src="{{ url_for('static', filename='images/vl-silks-logo-transparent.png') }}" alt="VL Silks Logo" style="max-height: 120px; margin-bottom: 24px;" onerror="this.src='{{ url_for('static', filename='images/vl-silks-monogram.png') }}'">
+                <h1 class="text-warning mb-2" style="font-size: 2.4rem;">VL SILKS</h1>
+                <p class="text-light text-uppercase tracking-wider fw-semibold mb-4" style="letter-spacing: 3px; font-size: 0.95rem;">TRADITION MEETS FASHION</p>
+                <div class="border-top border-warning opacity-50 my-4" style="max-width: 200px; margin: 0 auto;"></div>
+                <p class="text-light-50 fs-6 mb-4" style="color: #FFECC4; line-height: 1.7;">
+                    Complete Garment Shop Inventory, Sales Billing, Customer Udhaar & Credit Management System.
+                </p>
+                
+                <div class="d-flex justify-content-center gap-3 text-start mt-4">
+                    <div class="bg-dark bg-opacity-25 p-3 rounded border border-warning border-opacity-25" style="width: 140px;">
+                        <i class="bi bi-boxes text-warning fs-4 mb-2 d-block"></i>
+                        <span class="small fw-semibold text-light d-block">Variant Stock</span>
+                    </div>
+                    <div class="bg-dark bg-opacity-25 p-3 rounded border border-warning border-opacity-25" style="width: 140px;">
+                        <i class="bi bi-journal-check text-warning fs-4 mb-2 d-block"></i>
+                        <span class="small fw-semibold text-light d-block">Udhaar Ledger</span>
+                    </div>
+                    <div class="bg-dark bg-opacity-25 p-3 rounded border border-warning border-opacity-25" style="width: 140px;">
+                        <i class="bi bi-file-earmark-pdf text-warning fs-4 mb-2 d-block"></i>
+                        <span class="small fw-semibold text-light d-block">PDF Statements</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Login Form Pane -->
+        <div class="vl-login-form-pane">
+            <div class="vl-login-card">
+                <div class="text-center mb-4">
+                    <img src="{{ url_for('static', filename='images/vl-silks-monogram.png') }}" alt="Monogram" style="height: 48px;" class="mb-2">
+                    <h2 class="h4 brand-font text-dark mb-1">Staff & Admin Login</h2>
+                    <p class="text-muted small">Enter your shop credentials to access the portal</p>
+                </div>
+
+                <!-- Flash Messages -->
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        {% for category, message in messages %}
+                            <div class="alert alert-{{ category if category != 'error' else 'danger' }} alert-dismissible fade show small" role="alert">
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                {% endwith %}
+
+                <form action="{{ url_for('auth.login') }}" method="POST">
+                    <div class="vl-form-group">
+                        <label class="vl-form-label" for="email">
+                            <i class="bi bi-envelope me-1 text-danger"></i> Email / Username
+                        </label>
+                        <input type="email" id="email" name="email" class="vl-form-input" placeholder="admin@vlsilks.com" required value="{{ request.form.get('email', '') }}">
+                    </div>
+
+                    <div class="vl-form-group">
+                        <label class="vl-form-label" for="password">
+                            <i class="bi bi-lock me-1 text-danger"></i> Password
+                        </label>
+                        <input type="password" id="password" name="password" class="vl-form-input" placeholder="••••••••" required>
+                    </div>
+
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="remember" name="remember">
+                            <label class="form-check-label small text-muted" for="remember">
+                                Remember this session
+                            </label>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="vl-btn-maroon w-100 justify-content-center py-2 fs-6">
+                        <i class="bi bi-box-arrow-in-right"></i> Sign In to Dashboard
+                    </button>
+                </form>
+
+                <!-- Demo Credentials Box -->
+                <div class="mt-4 pt-3 border-top text-start bg-light p-3 rounded border">
+                    <div class="fw-bold small text-dark mb-1"><i class="bi bi-key-fill text-warning me-1"></i> Demo Credentials:</div>
+                    <div class="small text-muted mb-1"><strong>Admin:</strong> <code>admin@vlsilks.com</code> / <code>Admin@123</code></div>
+                    <div class="small text-muted"><strong>Staff:</strong> <code>staff@vlsilks.com</code> / <code>Staff@123</code></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap 5 JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

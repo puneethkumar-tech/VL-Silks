@@ -1,0 +1,389 @@
+{% extends "base.html" %}
+
+{% block title %}Record Inward Stock – VL Silks{% endblock %}
+{% block header_title %}New Purchase / Inward Stock{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-12">
+        <div class="d-flex align-items-center justify-content-between mb-3">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-0">
+                    <li class="breadcrumb-item"><a href="{{ url_for('purchases.index') }}" class="text-decoration-none text-danger">Purchases</a></li>
+                    <li class="breadcrumb-item active">New Inward Purchase</li>
+                </ol>
+            </nav>
+            <a href="{{ url_for('purchases.index') }}" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-arrow-left me-1"></i> Back to Purchases
+            </a>
+        </div>
+
+        <form action="{{ url_for('purchases.new') }}" method="POST" id="purchaseForm">
+            <!-- 1. Purchase Header Details Card -->
+            <div class="vl-card mb-4">
+                <h2 class="h5 brand-font mb-3 text-danger"><i class="bi bi-file-earmark-text-fill me-2"></i> 1. Supplier & Invoice Details</h2>
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <label class="vl-form-label" for="supplier_id">Supplier <span class="text-danger">*</span></label>
+                        <select id="supplier_id" name="supplier_id" class="form-select" required>
+                            <option value="">-- Select Active Supplier --</option>
+                            {% for s in suppliers %}
+                                <option value="{{ s.supplier_id }}" {% if form_data.get('supplier_id')|string == s.supplier_id|string %}selected{% endif %}>
+                                    {{ s.supplier_name }}{% if s.phone %} ({{ s.phone }}){% endif %}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="vl-form-label" for="invoice_number">Invoice / Ref Number <span class="text-danger">*</span></label>
+                        <input type="text" id="invoice_number" name="invoice_number" class="vl-form-input" placeholder="e.g. PUR-KS-2026-101" required value="{{ form_data.get('invoice_number', '') }}">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="vl-form-label" for="purchase_date">Purchase Date <span class="text-danger">*</span></label>
+                        <input type="date" id="purchase_date" name="purchase_date" class="vl-form-input" required value="{{ form_data.get('purchase_date', today_date) }}">
+                    </div>
+                    <div class="col-md-2">
+                        <label class="vl-form-label" for="payment_status">Payment Status <span class="text-danger">*</span></label>
+                        <select id="payment_status" name="payment_status" class="form-select">
+                            <option value="PAID" {% if form_data.get('payment_status', 'PAID') == 'PAID' %}selected{% endif %}>Paid in Full</option>
+                            <option value="PARTIAL" {% if form_data.get('payment_status') == 'PARTIAL' %}selected{% endif %}>Partial</option>
+                            <option value="PENDING" {% if form_data.get('payment_status') == 'PENDING' %}selected{% endif %}>Pending / Credit</option>
+                        </select>
+                    </div>
+                    <div class="col-12">
+                        <label class="vl-form-label" for="notes">Purchase Notes / Remarks</label>
+                        <input type="text" id="notes" name="notes" class="vl-form-input" placeholder="Optional notes (e.g. Festival stock consignment, 5% bulk cash discount applied)" value="{{ form_data.get('notes', '') }}">
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2. Purchase Line Items Card -->
+            <div class="vl-card mb-4">
+                <div class="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-2 mb-3">
+                    <div>
+                        <h2 class="h5 brand-font mb-1 text-danger"><i class="bi bi-box-seam me-2"></i> 2. Purchased Garment Variants</h2>
+                        <p class="text-muted small mb-0">Select the specific variant (Size / Color) to increase stock inventory atomically</p>
+                    </div>
+                    <button type="button" class="vl-btn-gold btn-sm" id="addItemBtn">
+                        <i class="bi bi-plus-circle me-1"></i> + Add Item Row
+                    </button>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="vl-table" id="itemsTable">
+                        <thead>
+                            <tr>
+                                <th style="min-width: 320px;">Garment / Variant SKU <span class="text-danger">*</span></th>
+                                <th style="width: 140px;">Current Stock</th>
+                                <th style="width: 130px;">Quantity <span class="text-danger">*</span></th>
+                                <th style="width: 150px;">Unit Cost (₹) <span class="text-danger">*</span></th>
+                                <th style="width: 150px;" class="text-end">Line Total (₹)</th>
+                                <th style="width: 50px;"></th>
+                            </tr>
+                        </thead>
+                        <tbody id="itemsTableBody">
+                            <!-- Populated dynamically or from reloaded server data -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <div id="noItemsWarning" class="text-center py-4 text-muted d-none">
+                    <i class="bi bi-bag-plus fs-2 text-secondary d-block mb-2"></i>
+                    <p class="mb-0">No purchase items added yet. Click <strong>+ Add Item Row</strong> above to begin.</p>
+                </div>
+            </div>
+
+            <!-- 3. Financial Summary & Actions Card -->
+            <div class="row g-4 mb-4">
+                <div class="col-lg-6">
+                    <div class="alert alert-warning border-0 h-100 mb-0">
+                        <div class="d-flex gap-3">
+                            <i class="bi bi-shield-check fs-2 text-warning"></i>
+                            <div>
+                                <h6 class="fw-bold mb-1">Atomic Inward Inventory Update</h6>
+                                <p class="small text-muted mb-0">
+                                    Saving this purchase will immediately increase the warehouse stock for each selected variant and generate permanent stock movement audit trails.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-6">
+                    <div class="vl-card p-4 bg-light">
+                        <div class="d-flex justify-content-between mb-2">
+                            <span class="text-muted">Item Subtotal:</span>
+                            <span class="fw-semibold" id="subtotalDisplay">₹0.00</span>
+                        </div>
+                        <div class="row g-2 mb-2 align-items-center">
+                            <div class="col-6">
+                                <label for="discount" class="small text-muted mb-0">Discount (₹):</label>
+                            </div>
+                            <div class="col-6">
+                                <input type="number" step="0.01" min="0" id="discount" name="discount" class="form-control form-control-sm text-end" value="{{ form_data.get('discount', '0.00') }}">
+                            </div>
+                        </div>
+                        <div class="row g-2 mb-3 align-items-center">
+                            <div class="col-6">
+                                <label for="tax" class="small text-muted mb-0">Tax / GST (₹):</label>
+                            </div>
+                            <div class="col-6">
+                                <input type="number" step="0.01" min="0" id="tax" name="tax" class="form-control form-control-sm text-end" value="{{ form_data.get('tax', '0.00') }}">
+                            </div>
+                        </div>
+                        <hr class="my-2">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="fs-5 brand-font text-danger fw-bold">Grand Total:</span>
+                            <span class="fs-4 brand-font text-danger fw-bold" id="grandTotalDisplay">₹0.00</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Form Actions -->
+            <div class="d-flex justify-content-end gap-3 mb-5">
+                <a href="{{ url_for('purchases.index') }}" class="btn btn-outline-secondary px-4">Cancel</a>
+                <button type="submit" class="vl-btn-maroon px-4" id="savePurchaseBtn">
+                    <i class="bi bi-check-lg me-1"></i> Save Purchase & Increase Stock
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Variant Options Data (JSON embedded safely for JS) -->
+<script type="application/json" id="variantsData">
+[
+    {% for v in variants %}
+    {
+        "variant_id": {{ v.variant_id }},
+        "sku": {{ v.sku | tojson }},
+        "product_name": {{ v.product_name | tojson }},
+        "size": {{ v.size | tojson }},
+        "color": {{ v.color | tojson }},
+        "stock_quantity": {{ v.stock_quantity }},
+        "purchase_price": {{ v.purchase_price }}
+    }{% if not loop.last %},{% endif %}
+    {% endfor %}
+]
+</script>
+
+<!-- Server Reloaded Items Data (if any validation error occurred) -->
+<script type="application/json" id="reloadedItemsData">
+[
+    {% if items_data %}
+        {% for item in items_data %}
+        {
+            "variant_id": "{{ item.variant_id }}",
+            "quantity": "{{ item.quantity }}",
+            "unit_price": "{{ item.unit_price }}"
+        }{% if not loop.last %},{% endif %}
+        {% endfor %}
+    {% endif %}
+]
+</script>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const variants = JSON.parse(document.getElementById('variantsData').textContent || '[]');
+    const reloadedItems = JSON.parse(document.getElementById('reloadedItemsData').textContent || '[]');
+    const itemsTableBody = document.getElementById('itemsTableBody');
+    const addItemBtn = document.getElementById('addItemBtn');
+    const noItemsWarning = document.getElementById('noItemsWarning');
+    const subtotalDisplay = document.getElementById('subtotalDisplay');
+    const grandTotalDisplay = document.getElementById('grandTotalDisplay');
+    const discountInput = document.getElementById('discount');
+    const taxInput = document.getElementById('tax');
+    const purchaseForm = document.getElementById('purchaseForm');
+
+    function formatCurrency(num) {
+        return '₹' + Number(num).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    function getSelectedVariantIds() {
+        const selects = document.querySelectorAll('.variant-select');
+        const ids = [];
+        selects.forEach(s => {
+            if (s.value) ids.push(parseInt(s.value));
+        });
+        return ids;
+    }
+
+    function createItemRow(prefill = null) {
+        const tr = document.createElement('tr');
+        tr.className = 'item-row';
+
+        const selectedIds = getSelectedVariantIds();
+
+        let selectOptions = '<option value="">-- Select Variant / SKU --</option>';
+        variants.forEach(v => {
+            const isSelected = prefill && String(prefill.variant_id) === String(v.variant_id);
+            const isAlreadyChosen = !isSelected && selectedIds.includes(v.variant_id);
+            
+            if (!isAlreadyChosen || isSelected) {
+                selectOptions += `<option value="${v.variant_id}" data-price="${v.purchase_price}" data-stock="${v.stock_quantity}" ${isSelected ? 'selected' : ''}>
+                    ${v.product_name} – ${v.sku} (${v.color} / ${v.size})
+                </option>`;
+            }
+        });
+
+        const initialQty = prefill ? prefill.quantity : 1;
+        const initialPrice = prefill ? prefill.unit_price : '0.00';
+
+        tr.innerHTML = `
+            <td>
+                <select name="variant_id[]" class="form-select form-select-sm variant-select" required>
+                    ${selectOptions}
+                </select>
+            </td>
+            <td>
+                <span class="badge bg-light text-dark border current-stock-badge">
+                    ${prefill ? 'Stock: ' + getVariantStock(prefill.variant_id) : '—'}
+                </span>
+            </td>
+            <td>
+                <input type="number" name="quantity[]" class="form-control form-control-sm item-qty text-center" min="1" step="1" required value="${initialQty}">
+            </td>
+            <td>
+                <input type="number" name="unit_price[]" class="form-control form-control-sm item-price text-end" min="0" step="0.01" required value="${initialPrice}">
+            </td>
+            <td class="text-end fw-semibold text-dark line-total-cell">
+                ₹0.00
+            </td>
+            <td class="text-center">
+                <button type="button" class="btn btn-outline-danger btn-sm remove-row-btn" title="Remove Item">
+                    <i class="bi bi-trash"></i>
+                </button>
+            </td>
+        `;
+
+        itemsTableBody.appendChild(tr);
+        attachRowEvents(tr);
+        updateCalculations();
+    }
+
+    function getVariantStock(variantId) {
+        const v = variants.find(item => String(item.variant_id) === String(variantId));
+        return v ? v.stock_quantity : '—';
+    }
+
+    function attachRowEvents(row) {
+        const select = row.querySelector('.variant-select');
+        const qtyInput = row.querySelector('.item-qty');
+        const priceInput = row.querySelector('.item-price');
+        const stockBadge = row.querySelector('.current-stock-badge');
+        const removeBtn = row.querySelector('.remove-row-btn');
+
+        select.addEventListener('change', function () {
+            const selectedOpt = select.options[select.selectedIndex];
+            if (select.value) {
+                const defaultPrice = selectedOpt.getAttribute('data-price') || '0.00';
+                const stock = selectedOpt.getAttribute('data-stock') || '0';
+                priceInput.value = parseFloat(defaultPrice).toFixed(2);
+                stockBadge.textContent = 'Stock: ' + stock;
+                stockBadge.className = parseInt(stock) > 0 ? 'badge bg-success-subtle text-success border border-success-subtle' : 'badge bg-danger-subtle text-danger border border-danger-subtle';
+            } else {
+                stockBadge.textContent = '—';
+                stockBadge.className = 'badge bg-light text-dark border';
+            }
+            updateCalculations();
+        });
+
+        qtyInput.addEventListener('input', updateCalculations);
+        priceInput.addEventListener('input', updateCalculations);
+
+        removeBtn.addEventListener('click', function () {
+            row.remove();
+            updateCalculations();
+        });
+    }
+
+    function updateCalculations() {
+        const rows = document.querySelectorAll('.item-row');
+        let subtotal = 0;
+
+        if (rows.length === 0) {
+            noItemsWarning.classList.remove('d-none');
+        } else {
+            noItemsWarning.classList.add('d-none');
+        }
+
+        rows.forEach(row => {
+            const qty = parseFloat(row.querySelector('.item-qty').value) || 0;
+            const price = parseFloat(row.querySelector('.item-price').value) || 0;
+            const lineTotal = Math.max(0, qty * price);
+            row.querySelector('.line-total-cell').textContent = formatCurrency(lineTotal);
+            subtotal += lineTotal;
+        });
+
+        const discount = Math.max(0, parseFloat(discountInput.value) || 0);
+        const tax = Math.max(0, parseFloat(taxInput.value) || 0);
+        const grandTotal = Math.max(0, subtotal - discount + tax);
+
+        subtotalDisplay.textContent = formatCurrency(subtotal);
+        grandTotalDisplay.textContent = formatCurrency(grandTotal);
+    }
+
+    discountInput.addEventListener('input', updateCalculations);
+    taxInput.addEventListener('input', updateCalculations);
+
+    addItemBtn.addEventListener('click', () => createItemRow());
+
+    // Form Submission Validation
+    purchaseForm.addEventListener('submit', function (e) {
+        const rows = document.querySelectorAll('.item-row');
+        if (rows.length === 0) {
+            e.preventDefault();
+            alert('Please add at least one garment variant to this purchase.');
+            return;
+        }
+
+        const selectedVariants = [];
+        let hasError = false;
+
+        rows.forEach((row, index) => {
+            const select = row.querySelector('.variant-select');
+            const qty = parseInt(row.querySelector('.item-qty').value);
+            const price = parseFloat(row.querySelector('.item-price').value);
+
+            if (!select.value) {
+                alert(`Row ${index + 1}: Please select a product variant.`);
+                hasError = true;
+                return;
+            }
+
+            if (selectedVariants.includes(select.value)) {
+                alert(`Duplicate variant in Row ${index + 1}. Each variant can only appear once in a purchase.`);
+                hasError = true;
+                return;
+            }
+            selectedVariants.push(select.value);
+
+            if (isNaN(qty) || qty <= 0) {
+                alert(`Row ${index + 1}: Quantity must be at least 1.`);
+                hasError = true;
+                return;
+            }
+
+            if (isNaN(price) || price < 0) {
+                alert(`Row ${index + 1}: Unit cost cannot be negative.`);
+                hasError = true;
+                return;
+            }
+        });
+
+        if (hasError) {
+            e.preventDefault();
+        }
+    });
+
+    // Populate initial rows
+    if (reloadedItems.length > 0) {
+        reloadedItems.forEach(item => createItemRow(item));
+    } else {
+        createItemRow();
+    }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+{% block title %}Credit Aging Report{% endblock %}
+{% block header_title %}Credit / Udhaar Aging Report{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <small class="text-muted">Generated at: {{ report.generated_at }}</small>
+    <div>
+      <a href="#" onclick="exportCsv()" class="btn btn-sm btn-success"><i class="bi bi-file-earmark-excel me-1"></i>Export CSV</a>
+      <button onclick="window.print()" class="btn btn-sm btn-outline-secondary ms-1"><i class="bi bi-printer me-1"></i>Print</button>
+    </div>
+  </div>
+
+  {% set sm = report.summary %}
+
+  <!-- Aging Buckets Summary -->
+  <div class="row g-3 mb-4">
+    <div class="col-6 col-md-3">
+      <div class="card border-0 shadow-sm text-center p-3" style="border-radius:10px; background:#f0fff4; border-left:4px solid #28a745 !important;">
+        <div class="fw-bold fs-5 text-success">{{ sm['0_30_days'] | currency }}</div>
+        <div class="small fw-semibold text-success">0–30 Days</div>
+        <div class="small text-muted">{{ report.buckets['0_30'] | length }} customers</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="card border-0 shadow-sm text-center p-3" style="border-radius:10px; background:#fffbf0; border-left:4px solid #ffc107 !important;">
+        <div class="fw-bold fs-5 text-warning">{{ sm['31_60_days'] | currency }}</div>
+        <div class="small fw-semibold text-warning">31–60 Days</div>
+        <div class="small text-muted">{{ report.buckets['31_60'] | length }} customers</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="card border-0 shadow-sm text-center p-3" style="border-radius:10px; background:#fff8f0; border-left:4px solid #fd7e14 !important;">
+        <div class="fw-bold fs-5" style="color:#fd7e14">{{ sm['61_90_days'] | currency }}</div>
+        <div class="small fw-semibold" style="color:#fd7e14">61–90 Days</div>
+        <div class="small text-muted">{{ report.buckets['61_90'] | length }} customers</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="card border-0 shadow-sm text-center p-3" style="border-radius:10px; background:#fff5f5; border-left:4px solid #dc3545 !important;">
+        <div class="fw-bold fs-5 text-danger">{{ sm['91_plus_days'] | currency }}</div>
+        <div class="small fw-semibold text-danger">90+ Days</div>
+        <div class="small text-muted">{{ report.buckets['91_plus'] | length }} customers</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card shadow-sm border-0 mb-3" style="border-radius:10px; background:#f8f0ff;">
+    <div class="card-body py-3 px-4 d-flex justify-content-between align-items-center">
+      <span class="fw-bold">Total Outstanding Udhaar</span>
+      <span class="fw-bold fs-5 text-danger">{{ sm.total_outstanding | currency }}</span>
+    </div>
+  </div>
+
+  <!-- Full Table -->
+  <div class="card shadow-sm border-0" style="border-radius:12px;">
+    <div class="card-header bg-white border-0 py-3 px-4 d-flex justify-content-between">
+      <h6 class="fw-bold mb-0"><i class="bi bi-journal-bookmark-fill me-2 text-danger"></i>All Customers with Outstanding Balance</h6>
+      <span class="badge bg-danger">{{ sm.customer_count }} customers</span>
+    </div>
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-sm table-hover mb-0 align-middle">
+          <thead class="table-light">
+            <tr>
+              <th class="px-3">Customer</th><th>Phone</th><th>City</th>
+              <th class="text-end">Credit Limit</th><th class="text-end">Outstanding</th>
+              <th>Oldest Credit</th><th class="text-end">Age (Days)</th><th>Bucket</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for c in report.customers %}
+            <tr class="{% if c.bucket == '91_plus' %}table-danger{% elif c.bucket == '61_90' %}table-warning{% endif %}">
+              <td class="px-3 fw-semibold">
+                <a href="{{ url_for('credit.view', customer_id=c.customer_id) }}" class="text-decoration-none" style="color:#8B0000">{{ c.customer_name }}</a>
+              </td>
+              <td class="small">{{ c.phone or '—' }}</td>
+              <td class="small text-muted">{{ c.city or '—' }}</td>
+              <td class="text-end">{{ c.credit_limit | currency }}</td>
+              <td class="text-end fw-bold text-danger">{{ c.outstanding_balance | currency }}</td>
+              <td class="small">{{ c.oldest_credit_date or '—' }}</td>
+              <td class="text-end">{{ c.age_days }}</td>
+              <td>
+                {% if c.bucket == '0_30' %}<span class="badge bg-success">0-30 Days</span>
+                {% elif c.bucket == '31_60' %}<span class="badge bg-warning text-dark">31-60 Days</span>
+                {% elif c.bucket == '61_90' %}<span class="badge" style="background:#fd7e14; color:white;">61-90 Days</span>
+                {% else %}<span class="badge bg-danger">90+ Days</span>{% endif %}
+              </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="8" class="text-center text-muted py-4">No outstanding credit balances. All clear!</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+function exportCsv() {
+  window.location.href = '/api/reports/credit-aging/csv';
+}
+</script>
+{% endblock %}

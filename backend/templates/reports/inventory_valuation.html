@@ -1,0 +1,143 @@
+﻿{% extends "base.html" %}
+{% block title %}Inventory Valuation{% endblock %}
+{% block header_title %}Inventory Valuation Report{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <small class="text-muted">Generated at: {{ report.generated_at }}</small>
+    </div>
+    <div>
+      <a href="#" onclick="exportCsv()" class="btn btn-sm btn-success">
+        <i class="bi bi-file-earmark-excel me-1"></i>Export CSV
+      </a>
+      <button onclick="window.print()" class="btn btn-sm btn-outline-secondary ms-1"><i class="bi bi-printer me-1"></i>Print</button>
+    </div>
+  </div>
+
+  {% set sm = report.summary %}
+  <div class="row g-3 mb-4">
+    <div class="col-6 col-md-2">
+      <div class="card border-0 shadow-sm text-center p-3" style="border-radius:10px;">
+        <div class="fw-bold fs-5" style="color:#117a65">{{ sm.total_variants }}</div>
+        <div class="small text-muted">Active Variants</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-2">
+      <div class="card border-0 shadow-sm text-center p-3" style="border-radius:10px;">
+        <div class="fw-bold fs-5">{{ sm.total_units }}</div>
+        <div class="small text-muted">Total Units</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="card border-0 shadow-sm text-center p-3" style="border-radius:10px;">
+        <div class="fw-bold fs-5 text-danger">{{ sm.total_cost_value | currency }}</div>
+        <div class="small text-muted">Value at Cost</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="card border-0 shadow-sm text-center p-3" style="border-radius:10px;">
+        <div class="fw-bold fs-5 text-success">{{ sm.total_selling_value | currency }}</div>
+        <div class="small text-muted">Value at Selling</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-2">
+      <div class="card border-0 shadow-sm text-center p-3" style="border-radius:10px; background:#f0fff4;">
+        <div class="fw-bold fs-5" style="color:#117a65">{{ sm.total_potential_margin | currency }}</div>
+        <div class="small text-muted">Potential Margin</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Category Subtotals -->
+  {% if report.category_subtotals %}
+  <div class="card shadow-sm border-0 mb-4" style="border-radius:12px;">
+    <div class="card-header bg-white border-0 py-3 px-4">
+      <h6 class="fw-bold mb-0"><i class="bi bi-collection-fill me-2" style="color:#117a65"></i>Category Summary</h6>
+    </div>
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-sm mb-0 align-middle">
+          <thead class="table-light">
+            <tr><th class="px-3">Category</th><th class="text-end">Variants</th><th class="text-end">Units</th><th class="text-end">Cost Value</th><th class="text-end">Selling Value</th></tr>
+          </thead>
+          <tbody>
+            {% for cat in report.category_subtotals %}
+            <tr>
+              <td class="px-3 fw-semibold">{{ cat.category_name }}</td>
+              <td class="text-end">{{ cat.variant_count }}</td>
+              <td class="text-end">{{ cat.total_units }}</td>
+              <td class="text-end text-danger">{{ cat.cost_value | currency }}</td>
+              <td class="text-end text-success">{{ cat.selling_value | currency }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Variant Detail Table -->
+  <div class="card shadow-sm border-0" style="border-radius:12px;">
+    <div class="card-header bg-white border-0 py-3 px-4 d-flex justify-content-between align-items-center">
+      <h6 class="fw-bold mb-0"><i class="bi bi-table me-2" style="color:#117a65"></i>All Active Variants</h6>
+      {% if sm.low_stock_count > 0 %}
+      <span class="badge bg-danger"><i class="bi bi-exclamation-triangle me-1"></i>{{ sm.low_stock_count }} Low Stock</span>
+      {% endif %}
+    </div>
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-sm table-hover mb-0 align-middle small">
+          <thead class="table-light">
+            <tr>
+              <th class="px-3">Category</th><th>Product</th><th>SKU</th>
+              <th>Size</th><th>Color</th><th class="text-end">Stock</th>
+              <th class="text-end">Min</th><th class="text-end">Buy Price</th>
+              <th class="text-end">Sell Price</th><th class="text-end">Cost Value</th>
+              <th class="text-end">Sell Value</th><th class="text-end">Margin</th><th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for v in report.variants %}
+            <tr class="{% if v.is_low_stock %}table-warning{% endif %}">
+              <td class="px-3 text-muted">{{ v.category_name }}</td>
+              <td class="fw-semibold">{{ v.product_name }}</td>
+              <td><code>{{ v.sku }}</code></td>
+              <td>{{ v.size or '—' }}</td>
+              <td>{{ v.color or '—' }}</td>
+              <td class="text-end {% if v.is_low_stock %}text-danger fw-bold{% endif %}">{{ v.stock_quantity }}</td>
+              <td class="text-end text-muted">{{ v.minimum_stock }}</td>
+              <td class="text-end">{{ v.purchase_price | currency }}</td>
+              <td class="text-end">{{ v.selling_price | currency }}</td>
+              <td class="text-end text-danger">{{ v.stock_value_at_cost | currency }}</td>
+              <td class="text-end text-success">{{ v.stock_value_at_selling | currency }}</td>
+              <td class="text-end" style="color:#117a65">{{ v.potential_margin | currency }}</td>
+              <td>
+                {% if v.is_low_stock %}
+                  <span class="badge bg-danger">Low Stock</span>
+                {% else %}
+                  <span class="badge bg-success">OK</span>
+                {% endif %}
+              </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="13" class="text-center text-muted py-4">No active variants found.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+function exportCsv() {
+  window.location.href = '/api/reports/inventory-valuation/csv';
+}
+</script>
+{% endblock %}

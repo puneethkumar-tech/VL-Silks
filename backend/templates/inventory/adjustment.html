@@ -1,0 +1,194 @@
+{% extends "base.html" %}
+
+{% block title %}Stock Adjustment & Damage Write-Off – VL Silks{% endblock %}
+{% block header_title %}Manual Stock Adjustment{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8 col-md-10">
+        <div class="d-flex align-items-center justify-content-between mb-3">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-0">
+                    <li class="breadcrumb-item"><a href="{{ url_for('inventory.index') }}" class="text-decoration-none text-danger">Inventory</a></li>
+                    <li class="breadcrumb-item active">Stock Adjustment</li>
+                </ol>
+            </nav>
+            <a href="{{ url_for('inventory.index') }}" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-arrow-left me-1"></i> Back to Inventory
+            </a>
+        </div>
+
+        <div class="vl-card mb-4">
+            <h2 class="h5 brand-font mb-2 text-danger"><i class="bi bi-sliders me-2"></i> Manual Stock Adjustment & Damage Entry</h2>
+            <p class="text-muted small mb-4">
+                Record manual stock reconciliations (found inventory, audit counts) or write off damaged/unsellable pieces. Every change generates an immutable audit record in <code>stock_movements</code>.
+            </p>
+
+            <form action="{{ url_for('inventory.adjustment') }}" method="POST" id="adjustmentForm">
+                <!-- Action Type Toggle -->
+                <div class="mb-4">
+                    <label class="vl-form-label d-block">Operation Mode <span class="text-danger">*</span></label>
+                    <div class="btn-group w-100" role="group">
+                        <input type="radio" class="btn-check" name="action_type" id="modeAdjustment" value="ADJUSTMENT" checked>
+                        <label class="btn btn-outline-dark py-2" for="modeAdjustment">
+                            <i class="bi bi-sliders me-1"></i> Manual Inventory Adjustment (Add / Reduce)
+                        </label>
+
+                        <input type="radio" class="btn-check" name="action_type" id="modeDamage" value="DAMAGE">
+                        <label class="btn btn-outline-danger py-2" for="modeDamage">
+                            <i class="bi bi-x-octagon me-1"></i> Damaged / Defective Stock Write-Off
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Variant Selection -->
+                <div class="mb-3">
+                    <label class="vl-form-label" for="variant_id">Select Garment Variant <span class="text-danger">*</span></label>
+                    <select id="variant_id" name="variant_id" class="form-select" required>
+                        <option value="">-- Choose Garment SKU & Variant --</option>
+                        {% for v in variants %}
+                            <option value="{{ v.variant_id }}" 
+                                data-stock="{{ v.stock_quantity }}" 
+                                data-sku="{{ v.sku }}"
+                                data-name="{{ v.product_name }}"
+                                {% if prefill_variant_id|string == v.variant_id|string %}selected{% endif %}>
+                                {{ v.product_name }} &bull; SKU: {{ v.sku }} ({{ v.color }} / {{ v.size }}) — [Current Stock: {{ v.stock_quantity }} pcs]
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- Adjustment Direction (Only shown for mode ADJUSTMENT) -->
+                <div class="row g-3 mb-3" id="adjustmentDirectionRow">
+                    <div class="col-md-6">
+                        <label class="vl-form-label" for="adjustment_type">Adjustment Type <span class="text-danger">*</span></label>
+                        <select id="adjustment_type" name="adjustment_type" class="form-select">
+                            <option value="INCREASE" selected>+ Increase Stock (Found / Audit Count Surplus)</option>
+                            <option value="DECREASE">- Decrease Stock (Shrinkage / Audit Correction)</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="vl-form-label" for="quantity">Quantity (Pieces) <span class="text-danger">*</span></label>
+                        <input type="number" id="quantity" name="quantity" class="form-control" min="1" step="1" placeholder="e.g. 2" required>
+                    </div>
+                </div>
+
+                <!-- Real-time Stock Calculation Preview Box -->
+                <div class="p-3 bg-light rounded border mb-3" id="previewBox">
+                    <div class="row text-center">
+                        <div class="col-4 border-end">
+                            <span class="text-muted small d-block">Current Stock</span>
+                            <span class="fs-5 fw-bold text-dark" id="currentStockDisplay">—</span>
+                        </div>
+                        <div class="col-4 border-end">
+                            <span class="text-muted small d-block">Adjustment Delta</span>
+                            <span class="fs-5 fw-bold text-primary" id="deltaDisplay">—</span>
+                        </div>
+                        <div class="col-4">
+                            <span class="text-muted small d-block">Projected Stock</span>
+                            <span class="fs-5 fw-bold" id="newStockDisplay">—</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Reason / Note Input -->
+                <div class="mb-4">
+                    <label class="vl-form-label" for="reason">Reason / Audit Remark <span class="text-danger">*</span></label>
+                    <textarea id="reason" name="reason" class="form-control" rows="3" placeholder="Provide a detailed mandatory reason for this adjustment (e.g. Discovered 1 unsold saree during quarterly physical stock audit; fabric weaving tear on hem)..." required></textarea>
+                </div>
+
+                <!-- Safety Alert -->
+                <div class="alert alert-secondary border-0 small mb-4">
+                    <i class="bi bi-shield-lock me-1"></i>
+                    <strong>Audit Integrity:</strong> Stock cannot be adjusted below zero (negative stock rejected). All modifications are permanently recorded under your admin user account.
+                </div>
+
+                <!-- Form Action Buttons -->
+                <div class="d-flex justify-content-end gap-2">
+                    <a href="{{ url_for('inventory.index') }}" class="btn btn-outline-secondary px-4">Cancel</a>
+                    <button type="submit" class="vl-btn-maroon px-4" id="submitBtn">
+                        <i class="bi bi-check2-circle me-1"></i> Commit Stock Adjustment
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const modeAdjustment = document.getElementById('modeAdjustment');
+    const modeDamage = document.getElementById('modeDamage');
+    const adjustmentDirectionRow = document.getElementById('adjustmentDirectionRow');
+    const adjustmentTypeSelect = document.getElementById('adjustment_type');
+    const variantSelect = document.getElementById('variant_id');
+    const quantityInput = document.getElementById('quantity');
+    const reasonTextarea = document.getElementById('reason');
+    const currentStockDisplay = document.getElementById('currentStockDisplay');
+    const deltaDisplay = document.getElementById('deltaDisplay');
+    const newStockDisplay = document.getElementById('newStockDisplay');
+    const submitBtn = document.getElementById('submitBtn');
+
+    function updateMode() {
+        if (modeDamage.checked) {
+            adjustmentTypeSelect.value = 'DECREASE';
+            adjustmentTypeSelect.disabled = true;
+            submitBtn.innerHTML = '<i class="bi bi-x-octagon me-1"></i> Write Off Damaged Stock';
+            submitBtn.className = 'btn btn-danger px-4';
+            reasonTextarea.placeholder = 'Provide details of damage (e.g. Water damage during rain leak in godown, torn zari border, moth damage)...';
+        } else {
+            adjustmentTypeSelect.disabled = false;
+            submitBtn.innerHTML = '<i class="bi bi-check2-circle me-1"></i> Commit Stock Adjustment';
+            submitBtn.className = 'vl-btn-maroon px-4';
+            reasonTextarea.placeholder = 'Provide a detailed mandatory reason for this adjustment (e.g. Physical inventory audit recount, found surplus box)...';
+        }
+        updatePreview();
+    }
+
+    function updatePreview() {
+        const selectedOpt = variantSelect.options[variantSelect.selectedIndex];
+        if (!variantSelect.value) {
+            currentStockDisplay.textContent = '—';
+            deltaDisplay.textContent = '—';
+            newStockDisplay.textContent = '—';
+            newStockDisplay.className = 'fs-5 fw-bold text-dark';
+            return;
+        }
+
+        const currentStock = parseInt(selectedOpt.getAttribute('data-stock') || '0');
+        const qty = parseInt(quantityInput.value) || 0;
+        const isDamage = modeDamage.checked;
+        const isIncrease = !isDamage && adjustmentTypeSelect.value === 'INCREASE';
+
+        const delta = isIncrease ? qty : -qty;
+        const newStock = currentStock + delta;
+
+        currentStockDisplay.textContent = currentStock + ' pcs';
+        deltaDisplay.textContent = (delta >= 0 ? '+' : '') + delta + ' pcs';
+        deltaDisplay.className = 'fs-5 fw-bold ' + (delta >= 0 ? 'text-success' : 'text-danger');
+
+        newStockDisplay.textContent = newStock + ' pcs';
+        if (newStock < 0) {
+            newStockDisplay.className = 'fs-5 fw-bold text-danger text-decoration-underline';
+            submitBtn.disabled = true;
+        } else {
+            newStockDisplay.className = 'fs-5 fw-bold ' + (newStock === 0 ? 'text-danger' : (newStock <= 5 ? 'text-warning' : 'text-success'));
+            submitBtn.disabled = false;
+        }
+    }
+
+    modeAdjustment.addEventListener('change', updateMode);
+    modeDamage.addEventListener('change', updateMode);
+    adjustmentTypeSelect.addEventListener('change', updatePreview);
+    variantSelect.addEventListener('change', updatePreview);
+    quantityInput.addEventListener('input', updatePreview);
+
+    updateMode();
+    if (variantSelect.value) {
+        updatePreview();
+    }
+});
+</script>
+{% endblock %}

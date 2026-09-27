@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+
+{% block title %}Add New Category – VL Silks{% endblock %}
+{% block header_title %}Create Garment Category{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8 col-md-10">
+        <div class="d-flex align-items-center justify-content-between mb-3">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-0">
+                    <li class="breadcrumb-item"><a href="{{ url_for('categories.index') }}" class="text-decoration-none text-danger">Categories</a></li>
+                    <li class="breadcrumb-item active">New Category</li>
+                </ol>
+            </nav>
+            <a href="{{ url_for('categories.index') }}" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-arrow-left me-1"></i> Back to Directory
+            </a>
+        </div>
+
+        <div class="vl-card">
+            <div class="d-flex align-items-center gap-2 mb-3">
+                <div class="vl-stat-icon" style="width: 32px; height: 32px; font-size: 1rem;">
+                    <i class="bi bi-plus-lg"></i>
+                </div>
+                <div>
+                    <h2 class="h5 brand-font mb-0 text-danger">New Category Details</h2>
+                    <p class="text-muted small mb-0">Define a new garment classification group for cataloging</p>
+                </div>
+            </div>
+
+            <form action="{{ url_for('categories.new') }}" method="POST">
+                <div class="row g-3">
+                    <div class="col-md-8">
+                        <label class="vl-form-label" for="category_name">Category Name <span class="text-danger">*</span></label>
+                        <input type="text" id="category_name" name="category_name" class="vl-form-input" placeholder="e.g. Bridal Lehengas, Silk Dupattas, Formal Trousers" required value="{{ form_data.get('category_name', '') }}">
+                        <div class="form-text small">Category names must be unique across the shop.</div>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="vl-form-label" for="status">Initial Status</label>
+                        <select id="status" name="status" class="form-select">
+                            <option value="ACTIVE" {% if form_data.get('status', 'ACTIVE') == 'ACTIVE' %}selected{% endif %}>Active</option>
+                            <option value="INACTIVE" {% if form_data.get('status') == 'INACTIVE' %}selected{% endif %}>Inactive</option>
+                        </select>
+                    </div>
+                    <div class="col-12">
+                        <label class="vl-form-label" for="description">Category Description / Department Notes</label>
+                        <textarea id="description" name="description" class="form-control" rows="3" placeholder="Optional description of garments included in this category, fabric types, target section...">{{ form_data.get('description', '') }}</textarea>
+                    </div>
+                </div>
+
+                <div class="d-flex justify-content-end gap-3 mt-4 pt-3 border-top">
+                    <a href="{{ url_for('categories.index') }}" class="btn btn-outline-secondary px-4">Cancel</a>
+                    <button type="submit" class="vl-btn-maroon px-4 py-2">
+                        <i class="bi bi-check2-circle"></i> Save Category
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

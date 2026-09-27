@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Dashboard{% endblock %} – VL Silks Management</title>
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='images/favicon-32.png') }}">
+    <link rel="icon" type="image/png" sizes="16x16" href="{{ url_for('static', filename='images/favicon-16.png') }}">
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700;800&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons & FontAwesome -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    
+    <!-- VL Silks Custom Brand CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <!-- Sidebar Navigation -->
+    <aside class="vl-sidebar" id="vlSidebar">
+        <div class="vl-sidebar-brand">
+            <a href="{{ url_for('dashboard.index') }}" class="text-decoration-none">
+                <img src="{{ url_for('static', filename='images/vl-silks-logo-transparent.png') }}" alt="VL Silks Logo" class="img-fluid" onerror="this.src='{{ url_for('static', filename='images/vl-silks-monogram.png') }}'">
+                <h4 class="mb-0">VL SILKS</h4>
+                <span>TRADITION MEETS FASHION</span>
+            </a>
+        </div>
+
+        <ul class="vl-nav-links">
+            <li class="vl-nav-item">
+                <a href="{{ url_for('dashboard.index') }}" class="vl-nav-link {% if request.endpoint == 'dashboard.index' %}active{% endif %}">
+                    <span class="vl-nav-icon"><i class="bi bi-grid-1x2-fill"></i></span>
+                    <span>Dashboard</span>
+                </a>
+            </li>
+            <li class="vl-nav-item">
+                <a href="{{ url_for('products.index') }}" class="vl-nav-link {% if 'products' in request.path %}active{% endif %}">
+                    <span class="vl-nav-icon"><i class="bi bi-tag-fill"></i></span>
+                    <span>Products & Variants</span>
+                </a>
+            </li>
+            <li class="vl-nav-item">
+                <a href="{{ url_for('categories.index') }}" class="vl-nav-link {% if 'categories' in request.path %}active{% endif %}">
+                    <span class="vl-nav-icon"><i class="bi bi-collection-fill"></i></span>
+                    <span>Categories</span>
+                </a>
+            </li>
+            <li class="vl-nav-item">
+                <a href="{{ url_for('inventory.index') }}" class="vl-nav-link {% if 'inventory' in request.path %}active{% endif %}">
+                    <span class="vl-nav-icon"><i class="bi bi-boxes"></i></span>
+                    <span>Inventory & Stock</span>
+                </a>
+            </li>
+            <li class="vl-nav-item">
+                <a href="{{ url_for('sales.index') }}" class="vl-nav-link {% if 'sales' in request.path %}active{% endif %}">
+                    <span class="vl-nav-icon"><i class="bi bi-cart-check-fill"></i></span>
+                    <span>Sales & Billing</span>
+                </a>
+            </li>
+            <li class="vl-nav-item">
+                <a href="{{ url_for('purchases.index') }}" class="vl-nav-link {% if 'purchases' in request.path %}active{% endif %}">
+                    <span class="vl-nav-icon"><i class="bi bi-bag-plus-fill"></i></span>
+                    <span>Purchases (Inward)</span>
+                </a>
+            </li>
+            <li class="vl-nav-item">
+                <a href="{{ url_for('customers.index') }}" class="vl-nav-link {% if 'customers' in request.path %}active{% endif %}">
+                    <span class="vl-nav-icon"><i class="bi bi-people-fill"></i></span>
+                    <span>Customers</span>
+                </a>
+            </li>
+            <li class="vl-nav-item">
+                <a href="{{ url_for('suppliers.index') }}" class="vl-nav-link {% if 'suppliers' in request.path %}active{% endif %}">
+                    <span class="vl-nav-icon"><i class="bi bi-truck"></i></span>
+                    <span>Suppliers</span>
+                </a>
+            </li>
+            <li class="vl-nav-item">
+                <a href="{{ url_for('credit.index') }}" class="vl-nav-link {% if 'credit' in request.path %}active{% endif %}">
+                    <span class="vl-nav-icon"><i class="bi bi-journal-bookmark-fill"></i></span>
+                    <span>Credit / Udhaar Ledger</span>
+                </a>
+            </li>
+            <li class="vl-nav-item">
+                <a href="{{ url_for('returns.index') }}" class="vl-nav-link {% if 'returns' in request.path %}active{% endif %}">
+                    <span class="vl-nav-icon"><i class="bi bi-arrow-return-left"></i></span>
+                    <span>Returns & Exchanges</span>
+                </a>
+            </li>
+            <li class="vl-nav-item">
+                <a href="{{ url_for('reports.index') }}" class="vl-nav-link {% if 'reports' in request.path %}active{% endif %}">
+                    <span class="vl-nav-icon"><i class="bi bi-file-earmark-bar-graph-fill"></i></span>
+                    <span>Reports</span>
+                </a>
+            </li>
+            {% if session.get('user_role') == 'ADMIN' %}
+            <li class="vl-nav-item">
+                <a href="{{ url_for('users.index') }}" class="vl-nav-link {% if 'users' in request.path %}active{% endif %}">
+                    <span class="vl-nav-icon"><i class="bi bi-person-gear"></i></span>
+                    <span>User Management</span>
+                </a>
+            </li>
+            {% endif %}
+        </ul>
+
+        <div class="vl-sidebar-footer">
+            <div class="vl-user-badge">
+                <div class="vl-user-avatar">
+                    {{ session.get('user_name', 'VL')[0] | upper }}
+                </div>
+                <div>
+                    <div class="fw-semibold small text-light">{{ session.get('user_name', 'Admin') }}</div>
+                    <div class="text-warning" style="font-size: 0.72rem;">{{ session.get('user_role', 'Administrator') }}</div>
+                </div>
+            </div>
+            <a href="{{ url_for('auth.logout') }}" class="text-warning text-decoration-none" title="Logout">
+                <i class="bi bi-box-arrow-right fs-5"></i>
+            </a>
+        </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <div class="vl-main-wrapper">
+        <!-- Top Navbar -->
+        <header class="vl-topbar">
+            <div class="d-flex align-items-center gap-3">
+                <button class="btn btn-outline-secondary d-lg-none" id="sidebarToggle" type="button">
+                    <i class="bi bi-list fs-5"></i>
+                </button>
+                <div class="vl-topbar-title">
+                    <h1 class="h4 mb-0">{% block header_title %}VL Silks Management{% endblock %}</h1>
+                </div>
+            </div>
+
+            <div class="vl-topbar-actions">
+                <span class="badge bg-light text-dark border px-3 py-2 d-none d-md-inline-block">
+                    <i class="bi bi-calendar3 me-1 text-danger"></i> <span id="currentDateDisplay"></span>
+                </span>
+                <a href="{{ url_for('sales.new') }}" class="vl-btn-maroon">
+                    <i class="bi bi-plus-circle"></i> <span>New Sale (POS)</span>
+                </a>
+                <a href="#" class="vl-btn-gold">
+                    <i class="bi bi-box-seam"></i> <span>Add Stock</span>
+                </a>
+            </div>
+        </header>
+
+        <!-- Flash Messages -->
+        <div class="container-fluid px-4 pt-3">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ category if category != 'error' else 'danger' }} alert-dismissible fade show" role="alert">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+        </div>
+
+        <!-- Page Body Container -->
+        <main class="vl-page-container">
+            {% block content %}{% endblock %}
+        </main>
+
+        <!-- Footer -->
+        <footer class="vl-footer py-3 px-4 bg-white border-top text-center text-muted small" id="vlFooter">
+            <div><strong>VL Silks</strong> – Tradition Meets Fashion | Garment Shop Inventory, Sales & Credit Management System</div>
+            <div class="text-secondary mt-1">College DBMS Project &bull; Built with Python, Flask & MySQL</div>
+        </footer>
+    </div>
+
+    <!-- ============================================================
+         VL Silks — Global Confirmation Modal
+         Usage: vlConfirm({ title, message, icon, confirmText, confirmClass, onConfirm })
+         ============================================================ -->
+    <div class="vl-confirm-backdrop" id="vlConfirmBackdrop" aria-hidden="true"></div>
+    <div class="vl-confirm-modal" id="vlConfirmModal" role="dialog" aria-modal="true" aria-labelledby="vlConfirmTitle" tabindex="-1">
+        <div class="vl-confirm-card">
+            <div class="vl-confirm-header">
+                <span class="vl-confirm-icon" id="vlConfirmIcon"></span>
+                <h5 class="vl-confirm-title" id="vlConfirmTitle">Confirm Action</h5>
+            </div>
+            <p class="vl-confirm-message" id="vlConfirmMessage"></p>
+            <div class="vl-confirm-actions">
+                <button class="vl-confirm-btn vl-confirm-cancel" id="vlConfirmCancel" type="button">Cancel</button>
+                <button class="vl-confirm-btn vl-confirm-ok" id="vlConfirmOk" type="button">Confirm</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap 5 JS Bundle -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Set current date in Indian format
+        const options = { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' };
+        const today = new Date();
+        const dateEl = document.getElementById('currentDateDisplay');
+        if (dateEl) {
+            dateEl.innerText = today.toLocaleDateString('en-IN', options);
+        }
+
+        // Sidebar mobile toggle
+        const toggleBtn = document.getElementById('sidebarToggle');
+        const sidebar = document.getElementById('vlSidebar');
+        if (toggleBtn && sidebar) {
+            toggleBtn.addEventListener('click', () => {
+                sidebar.classList.toggle('show');
+            });
+        }
+    </script>
+
+    <style>
+        /* ── VL Silks Confirmation Modal ── */
+        .vl-confirm-backdrop {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,.55);
+            z-index: 1060;
+            animation: vlFadeIn .18s ease;
+        }
+        .vl-confirm-backdrop.active { display: block; }
+
+        .vl-confirm-modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            z-index: 1061;
+            align-items: center;
+            justify-content: center;
+        }
+        .vl-confirm-modal.active { display: flex; }
+
+        .vl-confirm-card {
+            background: #FFF8E1;
+            border-radius: 14px;
+            box-shadow: 0 8px 40px rgba(139,0,0,.22), 0 2px 12px rgba(0,0,0,.14);
+            padding: 2rem 2.2rem 1.6rem;
+            max-width: 420px;
+            width: calc(100% - 2rem);
+            animation: vlSlideUp .2s ease;
+        }
+
+        .vl-confirm-header {
+            display: flex;
+            align-items: center;
+            gap: .7rem;
+            margin-bottom: .85rem;
+        }
+        .vl-confirm-icon {
+            font-size: 1.5rem;
+            line-height: 1;
+        }
+        .vl-confirm-title {
+            margin: 0;
+            font-family: 'Cinzel', serif;
+            font-size: 1.05rem;
+            color: #8B0000;
+            font-weight: 700;
+        }
+        .vl-confirm-message {
+            color: #333;
+            font-size: .93rem;
+            margin-bottom: 1.5rem;
+            line-height: 1.55;
+        }
+        .vl-confirm-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: .7rem;
+        }
+        .vl-confirm-btn {
+            border: none;
+            border-radius: 7px;
+            padding: .5rem 1.3rem;
+            font-size: .9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: opacity .15s, transform .12s;
+        }
+        .vl-confirm-btn:active { transform: scale(.97); }
+        .vl-confirm-cancel {
+            background: #e9e0d0;
+            color: #555;
+        }
+        .vl-confirm-cancel:hover { background: #d9cfc0; }
+        .vl-confirm-ok {
+            background: #8B0000;
+            color: #fff;
+        }
+        .vl-confirm-ok:hover { background: #6e0000; }
+        .vl-confirm-ok.vl-confirm-danger { background: #b80000; }
+        .vl-confirm-ok.vl-confirm-success { background: #2d6e2d; }
+
+        @keyframes vlFadeIn  { from { opacity: 0 } to { opacity: 1 } }
+        @keyframes vlSlideUp { from { opacity: 0; transform: translateY(18px) } to { opacity: 1; transform: translateY(0) } }
+    </style>
+
+    <script>
+    /* ── VL Silks Global Confirm Modal ── */
+    (function () {
+        const backdrop = document.getElementById('vlConfirmBackdrop');
+        const modal    = document.getElementById('vlConfirmModal');
+        const titleEl  = document.getElementById('vlConfirmTitle');
+        const iconEl   = document.getElementById('vlConfirmIcon');
+        const msgEl    = document.getElementById('vlConfirmMessage');
+        const cancelBtn= document.getElementById('vlConfirmCancel');
+        const okBtn    = document.getElementById('vlConfirmOk');
+
+        let _resolve = null;
+
+        function close() {
+            backdrop.classList.remove('active');
+            modal.classList.remove('active');
+            modal.setAttribute('aria-hidden', 'true');
+            cancelBtn.style.display = '';
+        }
+
+        /* Public API: Confirmation (Cancel + Confirm buttons) */
+        window.vlConfirm = function ({ title = 'Confirm Action', message = '', icon = '\u26a0\ufe0f',
+                                       confirmText = 'Confirm', confirmClass = '' } = {}) {
+            titleEl.textContent   = title;
+            msgEl.textContent     = message;
+            iconEl.textContent    = icon;
+            okBtn.textContent     = confirmText;
+            okBtn.className       = 'vl-confirm-btn vl-confirm-ok' + (confirmClass ? ' ' + confirmClass : '');
+            cancelBtn.style.display = '';
+
+            backdrop.classList.add('active');
+            modal.classList.add('active');
+            modal.removeAttribute('aria-hidden');
+            cancelBtn.focus();
+
+            return new Promise(function (resolve) {
+                _resolve = resolve;
+            });
+        };
+
+        /* Public API: Alert Modal (Single OK button) */
+        window.vlAlert = function (options) {
+            let title = 'Notice', message = '', icon = 'ℹ️', buttonText = 'OK';
+            if (typeof options === 'string') {
+                message = options;
+            } else if (options && typeof options === 'object') {
+                title      = options.title || 'Notice';
+                message    = options.message || '';
+                icon       = options.icon || 'ℹ️';
+                buttonText = options.buttonText || 'OK';
+            }
+            titleEl.textContent   = title;
+            msgEl.textContent     = message;
+            iconEl.textContent    = icon;
+            okBtn.textContent     = buttonText;
+            okBtn.className       = 'vl-confirm-btn vl-confirm-ok';
+            cancelBtn.style.display = 'none';
+
+            backdrop.classList.add('active');
+            modal.classList.add('active');
+            modal.removeAttribute('aria-hidden');
+            okBtn.focus();
+
+            return new Promise(function (resolve) {
+                _resolve = function (res) {
+                    close();
+                    resolve(true);
+                };
+            });
+        };
+
+        okBtn.addEventListener('click', function () { close(); if (_resolve) _resolve(true);  _resolve = null; });
+        cancelBtn.addEventListener('click', function () { close(); if (_resolve) _resolve(false); _resolve = null; });
+        backdrop.addEventListener('click', function () { close(); if (_resolve) _resolve(false); _resolve = null; });
+
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape' && modal.classList.contains('active')) {
+                close();
+                if (_resolve) _resolve(false);
+                _resolve = null;
+            }
+        });
+
+        /* Auto-wire every <form data-vl-confirm> on the page */
+        document.addEventListener('DOMContentLoaded', function () {
+            document.querySelectorAll('form[data-vl-confirm]').forEach(function (form) {
+                form.addEventListener('submit', async function (e) {
+                    e.preventDefault();
+                    const confirmed = await window.vlConfirm({
+                        title:        form.dataset.vlTitle       || 'Confirm Action',
+                        message:      form.dataset.vlMessage     || 'Are you sure?',
+                        icon:         form.dataset.vlIcon        || '\u26a0\ufe0f',
+                        confirmText:  form.dataset.vlConfirmText || 'Confirm',
+                        confirmClass: form.dataset.vlConfirmClass|| ''
+                    });
+                    if (confirmed) form.submit();
+                });
+            });
+
+            /* Also wire buttons with data-vl-confirm (onclick pattern) */
+            document.querySelectorAll('button[data-vl-confirm]').forEach(function (btn) {
+                const form = btn.closest('form');
+                if (!form) return;
+                btn.addEventListener('click', async function (e) {
+                    e.preventDefault();
+                    const confirmed = await window.vlConfirm({
+                        title:        btn.dataset.vlTitle       || 'Confirm Action',
+                        message:      btn.dataset.vlMessage     || 'Are you sure?',
+                        icon:         btn.dataset.vlIcon        || '\u26a0\ufe0f',
+                        confirmText:  btn.dataset.vlConfirmText || 'Confirm',
+                        confirmClass: btn.dataset.vlConfirmClass|| ''
+                    });
+                    if (confirmed) form.submit();
+                });
+            });
+        });
+    }());
+    </script>
+
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

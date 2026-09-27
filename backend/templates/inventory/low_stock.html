@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+
+{% block title %}Low Stock Alerts – VL Silks{% endblock %}
+{% block header_title %}Low Stock Alert Monitor{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-12">
+        <div class="d-flex align-items-center justify-content-between mb-3">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-0">
+                    <li class="breadcrumb-item"><a href="{{ url_for('inventory.index') }}" class="text-decoration-none text-danger">Inventory</a></li>
+                    <li class="breadcrumb-item active">Low Stock Alerts</li>
+                </ol>
+            </nav>
+            <div class="d-flex gap-2">
+                <a href="{{ url_for('inventory.index') }}" class="btn btn-outline-secondary btn-sm">
+                    <i class="bi bi-arrow-left me-1"></i> All Inventory
+                </a>
+                {% if session.get('user_role') == 'ADMIN' %}
+                <a href="{{ url_for('purchases.new') }}" class="vl-btn-maroon btn-sm">
+                    <i class="bi bi-plus-lg me-1"></i> Inward Purchase
+                </a>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Alert Summary Banner -->
+        <div class="alert alert-warning border-0 mb-4 p-4 shadow-sm">
+            <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
+                <div class="d-flex gap-3 align-items-center">
+                    <i class="bi bi-exclamation-triangle-fill fs-1 text-warning"></i>
+                    <div>
+                        <h5 class="fw-bold mb-1">Attention Required: {{ items|length }} Garment SKUs Below Minimum Threshold</h5>
+                        <p class="mb-0 small text-muted">
+                            These items are selling fast and their warehouse stock is at or below the minimum buffer threshold. Plan inward procurement to prevent stockouts.
+                        </p>
+                    </div>
+                </div>
+                {% if session.get('user_role') == 'ADMIN' and items|length > 0 %}
+                <a href="{{ url_for('purchases.new') }}" class="btn btn-dark btn-sm text-nowrap">
+                    <i class="bi bi-bag-plus me-1"></i> Create Procurement Order
+                </a>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Low Stock Items Table -->
+        <div class="vl-card">
+            <h2 class="h5 brand-font mb-3 text-danger"><i class="bi bi-list-check me-2"></i> Low Stock Garments</h2>
+            <div class="table-responsive">
+                <table class="vl-table">
+                    <thead>
+                        <tr>
+                            <th>Garment Product</th>
+                            <th>Category</th>
+                            <th>SKU</th>
+                            <th>Size & Color</th>
+                            <th class="text-center">Current Stock</th>
+                            <th class="text-center">Min Threshold</th>
+                            <th class="text-center text-danger">Units Needed</th>
+                            <th class="text-end">Cost Price</th>
+                            <th class="text-end">Selling Price</th>
+                            {% if session.get('user_role') == 'ADMIN' %}
+                            <th class="text-end">Actions</th>
+                            {% endif %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if items %}
+                            {% for item in items %}
+                            <tr>
+                                <td>
+                                    <a href="{{ url_for('products.view', product_id=item.product_id) }}" class="fw-semibold text-danger text-decoration-none">
+                                        {{ item.product_name }}
+                                    </a>
+                                </td>
+                                <td><span class="badge bg-light text-dark border">{{ item.category_name }}</span></td>
+                                <td><span class="font-monospace fw-medium text-dark">{{ item.sku }}</span></td>
+                                <td>
+                                    <span class="badge bg-secondary-subtle text-dark me-1">{{ item.color }}</span>
+                                    <span class="badge bg-light text-secondary border">{{ item.size }}</span>
+                                </td>
+                                <td class="text-center">
+                                    <span class="badge bg-warning-subtle text-warning border border-warning-subtle fs-6 px-3">
+                                        {{ item.stock_quantity }} pcs
+                                    </span>
+                                </td>
+                                <td class="text-center text-muted">
+                                    {{ item.minimum_stock }} pcs
+                                </td>
+                                <td class="text-center fw-bold text-danger">
+                                    +{{ item.units_needed }} pcs
+                                </td>
+                                <td class="text-end text-muted">{{ item.purchase_price | currency }}</td>
+                                <td class="text-end fw-semibold text-dark">{{ item.selling_price | currency }}</td>
+                                {% if session.get('user_role') == 'ADMIN' %}
+                                <td class="text-end">
+                                    <a href="{{ url_for('inventory.adjustment', variant_id=item.variant_id) }}" class="btn btn-outline-secondary btn-sm" title="Adjust Stock">
+                                        <i class="bi bi-sliders"></i>
+                                    </a>
+                                </td>
+                                {% endif %}
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="10" class="text-center py-5">
+                                    <div class="text-success">
+                                        <i class="bi bi-shield-check fs-1 d-block mb-3"></i>
+                                        <h5>All Stock Levels Healthy!</h5>
+                                        <p class="text-muted mb-0">No garment variants are currently at or below minimum threshold.</p>
+                                    </div>
+                                </td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Supplier – VL Silks{% endblock %}
+{% block header_title %}Edit Supplier{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="vl-card">
+            <div class="d-flex align-items-center mb-4">
+                <div>
+                    <h2 class="h5 brand-font mb-1"><i class="bi bi-pencil-square me-2 text-danger"></i> Edit Supplier Details</h2>
+                    <p class="text-muted small mb-0">Updating: <strong>{{ supplier.supplier_name }}</strong> &nbsp;·&nbsp; ID #{{ supplier.supplier_id }}</p>
+                </div>
+                <div class="ms-auto d-flex gap-2">
+                    <a href="{{ url_for('suppliers.view', supplier_id=supplier.supplier_id) }}" class="btn btn-outline-primary btn-sm">
+                        <i class="bi bi-eye"></i> View Profile
+                    </a>
+                    <a href="{{ url_for('suppliers.index') }}" class="btn btn-outline-secondary btn-sm">
+                        <i class="bi bi-arrow-left"></i> Back
+                    </a>
+                </div>
+            </div>
+
+            <!-- Purchase count info banner -->
+            {% if supplier.purchase_count > 0 %}
+            <div class="alert alert-info border-0 d-flex align-items-center gap-2 mb-4" role="alert">
+                <i class="bi bi-info-circle-fill text-info fs-5"></i>
+                <div>
+                    This supplier has <strong>{{ supplier.purchase_count }} purchase order(s)</strong>
+                    (Total: <strong>{{ supplier.total_purchase_value | currency }}</strong>).
+                    Editing contact details will not affect purchase history records.
+                </div>
+            </div>
+            {% endif %}
+
+            <form method="POST" action="{{ url_for('suppliers.edit', supplier_id=supplier.supplier_id) }}" novalidate>
+                <!-- Business Details -->
+                <div class="mb-4">
+                    <h6 class="text-uppercase text-muted fw-semibold border-bottom pb-2 mb-3" style="letter-spacing:.06em; font-size:.75rem;">
+                        <i class="bi bi-briefcase me-1"></i> Business Information
+                    </h6>
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <label for="supplier_name" class="form-label fw-semibold">Supplier / Business Name <span class="text-danger">*</span></label>
+                            <input type="text" id="supplier_name" name="supplier_name" class="form-control"
+                                value="{{ form_data.get('supplier_name', '') }}" required maxlength="150">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="contact_person" class="form-label fw-semibold">Contact Person</label>
+                            <input type="text" id="contact_person" name="contact_person" class="form-control"
+                                value="{{ form_data.get('contact_person', '') }}" maxlength="100">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="gst_number" class="form-label fw-semibold">GST Number</label>
+                            <input type="text" id="gst_number" name="gst_number" class="form-control"
+                                value="{{ form_data.get('gst_number', '') }}" maxlength="30">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Contact Details -->
+                <div class="mb-4">
+                    <h6 class="text-uppercase text-muted fw-semibold border-bottom pb-2 mb-3" style="letter-spacing:.06em; font-size:.75rem;">
+                        <i class="bi bi-telephone me-1"></i> Contact Details
+                    </h6>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label for="phone" class="form-label fw-semibold">Phone Number <span class="text-danger">*</span></label>
+                            <input type="text" id="phone" name="phone" class="form-control"
+                                value="{{ form_data.get('phone', '') }}" required maxlength="20">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="email" class="form-label fw-semibold">Email Address</label>
+                            <input type="email" id="email" name="email" class="form-control"
+                                value="{{ form_data.get('email', '') }}" maxlength="100">
+                        </div>
+                        <div class="col-12">
+                            <label for="address" class="form-label fw-semibold">Business Address</label>
+                            <textarea id="address" name="address" class="form-control" rows="2">{{ form_data.get('address', '') }}</textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Status -->
+                <div class="mb-4">
+                    <label class="form-label fw-semibold">Status</label>
+                    <div class="d-flex gap-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="status" id="statusActive" value="ACTIVE"
+                                {% if form_data.get('status', 'ACTIVE') == 'ACTIVE' %}checked{% endif %}>
+                            <label class="form-check-label" for="statusActive">
+                                <span class="vl-badge vl-badge-active"><i class="bi bi-check-circle-fill me-1"></i> Active</span>
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="status" id="statusInactive" value="INACTIVE"
+                                {% if form_data.get('status') == 'INACTIVE' %}checked{% endif %}>
+                            <label class="form-check-label" for="statusInactive">
+                                <span class="vl-badge bg-secondary text-white"><i class="bi bi-dash-circle-fill me-1"></i> Inactive</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Actions -->
+                <div class="d-flex gap-2 pt-3 border-top">
+                    <button type="submit" class="vl-btn-maroon">
+                        <i class="bi bi-floppy-fill"></i> Update Supplier
+                    </button>
+                    <a href="{{ url_for('suppliers.view', supplier_id=supplier.supplier_id) }}" class="btn btn-outline-secondary">
+                        <i class="bi bi-x-circle"></i> Cancel
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

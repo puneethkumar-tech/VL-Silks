@@ -1,0 +1,213 @@
+{% extends "base.html" %}
+
+{% block title %}Inventory & Stock Management – VL Silks{% endblock %}
+{% block header_title %}Inventory & Stock Levels{% endblock %}
+
+{% block content %}
+<!-- Summary Metric Cards -->
+<div class="row g-3 mb-4">
+    <div class="col-xl-3 col-md-6">
+        <div class="vl-stat-card h-100">
+            <div class="vl-stat-header">
+                <span class="vl-stat-title">Total Garment Units</span>
+                <span class="vl-stat-icon"><i class="bi bi-boxes"></i></span>
+            </div>
+            <div class="vl-stat-value">{{ metrics.total_units }} <small class="fs-6 text-muted">pcs</small></div>
+            <div class="vl-stat-subtext">Across {{ metrics.total_variants }} distinct SKUs</div>
+        </div>
+    </div>
+    <div class="col-xl-3 col-md-6">
+        <div class="vl-stat-card h-100">
+            <div class="vl-stat-header">
+                <span class="vl-stat-title">Healthy Stock</span>
+                <span class="vl-stat-icon text-success"><i class="bi bi-check-circle-fill"></i></span>
+            </div>
+            <div class="vl-stat-value text-success">{{ metrics.in_stock_count }} <small class="fs-6 text-muted">SKUs</small></div>
+            <div class="vl-stat-subtext">Stock above minimum threshold</div>
+        </div>
+    </div>
+    <div class="col-xl-3 col-md-6">
+        <div class="vl-stat-card h-100">
+            <div class="vl-stat-header">
+                <span class="vl-stat-title">Low Stock Alerts</span>
+                <span class="vl-stat-icon text-warning"><i class="bi bi-exclamation-triangle-fill"></i></span>
+            </div>
+            <div class="vl-stat-value text-warning">
+                <a href="{{ url_for('inventory.low_stock') }}" class="text-warning text-decoration-none">
+                    {{ metrics.low_stock_count }} <small class="fs-6 text-muted">SKUs</small>
+                </a>
+            </div>
+            <div class="vl-stat-subtext">Need reorder soon (&le; min stock)</div>
+        </div>
+    </div>
+    <div class="col-xl-3 col-md-6">
+        <div class="vl-stat-card h-100">
+            <div class="vl-stat-header">
+                <span class="vl-stat-title">Out of Stock</span>
+                <span class="vl-stat-icon text-danger"><i class="bi bi-x-circle-fill"></i></span>
+            </div>
+            <div class="vl-stat-value text-danger">
+                <a href="{{ url_for('inventory.out_of_stock') }}" class="text-danger text-decoration-none">
+                    {{ metrics.out_of_stock_count }} <small class="fs-6 text-muted">SKUs</small>
+                </a>
+            </div>
+            <div class="vl-stat-subtext">Zero units available on shelf</div>
+        </div>
+    </div>
+</div>
+
+<!-- Main Inventory Card -->
+<div class="vl-card">
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
+        <div>
+            <h2 class="h5 brand-font mb-1"><i class="bi bi-boxes me-2 text-danger"></i> Warehouse Stock Inventory</h2>
+            <p class="text-muted small mb-0">Live stock quantities across all size and color variants derived from purchase inwards and sales outwards</p>
+        </div>
+        <div class="d-flex flex-wrap gap-2">
+            <a href="{{ url_for('inventory.movements') }}" class="btn btn-outline-dark btn-sm">
+                <i class="bi bi-journal-text me-1"></i> Movement Audit Log
+            </a>
+            {% if session.get('user_role') == 'ADMIN' %}
+            <a href="{{ url_for('inventory.adjustment') }}" class="vl-btn-maroon btn-sm">
+                <i class="bi bi-sliders me-1"></i> Adjust Stock / Damaged
+            </a>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Search & Filters -->
+    <form method="GET" action="{{ url_for('inventory.index') }}" class="row g-2 mb-4 p-3 bg-light rounded border">
+        <div class="col-lg-4 col-md-6">
+            <div class="input-group input-group-sm">
+                <span class="input-group-text bg-white border-end-0"><i class="bi bi-search text-muted"></i></span>
+                <input type="text" name="search" class="form-control border-start-0"
+                    placeholder="Search name, brand, SKU, color, barcode..."
+                    value="{{ current_search }}">
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6">
+            <select name="category_id" class="form-select form-select-sm">
+                <option value="">All Categories</option>
+                {% for c in categories %}
+                    <option value="{{ c.category_id }}" {% if current_category_id|string == c.category_id|string %}selected{% endif %}>
+                        {{ c.category_name }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-lg-3 col-md-6">
+            <select name="stock_status" class="form-select form-select-sm">
+                <option value="ALL" {% if current_stock_status == 'ALL' %}selected{% endif %}>All Stock Levels</option>
+                <option value="IN_STOCK" {% if current_stock_status == 'IN_STOCK' %}selected{% endif %}>In Stock (Healthy)</option>
+                <option value="LOW_STOCK" {% if current_stock_status == 'LOW_STOCK' %}selected{% endif %}>Low Stock (&le; Min Stock)</option>
+                <option value="OUT_OF_STOCK" {% if current_stock_status == 'OUT_OF_STOCK' %}selected{% endif %}>Out of Stock (0 pcs)</option>
+            </select>
+        </div>
+        <div class="col-lg-2 col-md-6 d-flex gap-2">
+            <button type="submit" class="btn btn-dark btn-sm flex-grow-1">
+                <i class="bi bi-funnel-fill me-1"></i> Filter
+            </button>
+            {% if current_search or current_category_id or (current_stock_status and current_stock_status != 'ALL') %}
+            <a href="{{ url_for('inventory.index') }}" class="btn btn-outline-secondary btn-sm" title="Reset filters">
+                <i class="bi bi-arrow-counterclockwise"></i>
+            </a>
+            {% endif %}
+        </div>
+    </form>
+
+    <!-- Stock Table -->
+    <div class="table-responsive">
+        <table class="vl-table">
+            <thead>
+                <tr>
+                    <th>Garment Product</th>
+                    <th>Category / Brand</th>
+                    <th>SKU / Code</th>
+                    <th>Size & Color</th>
+                    <th class="text-center">Current Stock</th>
+                    <th class="text-center">Min Threshold</th>
+                    <th>Stock Health</th>
+                    <th class="text-end">Cost Price</th>
+                    <th class="text-end">Selling Price</th>
+                    {% if session.get('user_role') == 'ADMIN' %}
+                    <th class="text-end">Action</th>
+                    {% endif %}
+                </tr>
+            </thead>
+            <tbody>
+                {% if items %}
+                    {% for item in items %}
+                    <tr>
+                        <td>
+                            <a href="{{ url_for('products.view', product_id=item.product_id) }}" class="fw-semibold text-danger text-decoration-none">
+                                {{ item.product_name }}
+                            </a>
+                            {% if item.material %}
+                            <div class="text-muted small">{{ item.material }}</div>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="badge bg-light text-dark border">{{ item.category_name }}</span>
+                            <div class="text-muted small">{{ item.brand or 'VL Silks' }}</div>
+                        </td>
+                        <td>
+                            <span class="font-monospace fw-medium text-dark">{{ item.sku }}</span>
+                            {% if item.barcode %}
+                            <div class="text-muted small font-monospace"><i class="bi bi-upc me-1"></i>{{ item.barcode }}</div>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="badge bg-secondary-subtle text-dark me-1">{{ item.color }}</span>
+                            <span class="badge bg-light text-secondary border">{{ item.size }}</span>
+                        </td>
+                        <td class="text-center">
+                            <span class="fs-6 fw-bold {% if item.stock_status == 'OUT_OF_STOCK' %}text-danger{% elif item.stock_status == 'LOW_STOCK' %}text-warning{% else %}text-success{% endif %}">
+                                {{ item.stock_quantity }}
+                            </span>
+                            <span class="small text-muted">pcs</span>
+                        </td>
+                        <td class="text-center text-muted">
+                            {{ item.minimum_stock }} pcs
+                        </td>
+                        <td>
+                            {% if item.stock_status == 'IN_STOCK' %}
+                                <span class="badge bg-success-subtle text-success border border-success-subtle">
+                                    <i class="bi bi-check-circle me-1"></i> IN STOCK
+                                </span>
+                            {% elif item.stock_status == 'LOW_STOCK' %}
+                                <span class="badge bg-warning-subtle text-warning border border-warning-subtle">
+                                    <i class="bi bi-exclamation-triangle me-1"></i> LOW STOCK
+                                </span>
+                            {% else %}
+                                <span class="badge bg-danger-subtle text-danger border border-danger-subtle">
+                                    <i class="bi bi-x-circle me-1"></i> OUT OF STOCK
+                                </span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end text-muted">{{ item.purchase_price | currency }}</td>
+                        <td class="text-end fw-semibold text-dark">{{ item.selling_price | currency }}</td>
+                        {% if session.get('user_role') == 'ADMIN' %}
+                        <td class="text-end">
+                            <a href="{{ url_for('inventory.adjustment', variant_id=item.variant_id) }}" class="btn btn-outline-secondary btn-sm" title="Adjust Stock">
+                                <i class="bi bi-sliders"></i>
+                            </a>
+                        </td>
+                        {% endif %}
+                    </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr>
+                        <td colspan="10" class="text-center py-5">
+                            <div class="text-muted">
+                                <i class="bi bi-boxes fs-1 d-block mb-3 text-secondary"></i>
+                                <h5>No Inventory Records Found</h5>
+                                <p class="mb-0">No garment variants match your search or filter criteria.</p>
+                            </div>
+                        </td>
+                    </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

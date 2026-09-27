@@ -1,0 +1,200 @@
+{% extends "base.html" %}
+
+{% block title %}Purchases & Inward Stock – VL Silks{% endblock %}
+{% block header_title %}Purchases & Inward Stock{% endblock %}
+
+{% block content %}
+<!-- Summary Metric Cards -->
+<div class="row g-3 mb-4">
+    <div class="col-xl-3 col-md-6">
+        <div class="vl-stat-card h-100">
+            <div class="vl-stat-header">
+                <span class="vl-stat-title">Total Purchases</span>
+                <span class="vl-stat-icon"><i class="bi bi-bag-plus-fill"></i></span>
+            </div>
+            <div class="vl-stat-value">{{ metrics.total_purchases }}</div>
+            <div class="vl-stat-subtext">Recorded supplier invoices</div>
+        </div>
+    </div>
+    <div class="col-xl-3 col-md-6">
+        <div class="vl-stat-card h-100">
+            <div class="vl-stat-header">
+                <span class="vl-stat-title">This Month</span>
+                <span class="vl-stat-icon"><i class="bi bi-calendar-check-fill"></i></span>
+            </div>
+            <div class="vl-stat-value">{{ metrics.this_month_count }} <small class="fs-6 text-muted">({{ metrics.this_month_value | currency }})</small></div>
+            <div class="vl-stat-subtext">Current month procurement</div>
+        </div>
+    </div>
+    <div class="col-xl-3 col-md-6">
+        <div class="vl-stat-card h-100">
+            <div class="vl-stat-header">
+                <span class="vl-stat-title">Total Purchase Value</span>
+                <span class="vl-stat-icon"><i class="bi bi-cash-stack"></i></span>
+            </div>
+            <div class="vl-stat-value">{{ metrics.total_purchase_value | currency }}</div>
+            <div class="vl-stat-subtext">Cumulative inward inventory spend</div>
+        </div>
+    </div>
+    <div class="col-xl-3 col-md-6">
+        <div class="vl-stat-card h-100">
+            <div class="vl-stat-header">
+                <span class="vl-stat-title">Pending / Unpaid</span>
+                <span class="vl-stat-icon text-warning"><i class="bi bi-clock-history"></i></span>
+            </div>
+            <div class="vl-stat-value text-warning">{{ metrics.pending_purchase_value | currency }}</div>
+            <div class="vl-stat-subtext">Payables awaiting full settlement</div>
+        </div>
+    </div>
+</div>
+
+<!-- Purchases Main Card -->
+<div class="vl-card">
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
+        <div>
+            <h2 class="h5 brand-font mb-1"><i class="bi bi-receipt me-2 text-danger"></i> Inward Purchase Invoices</h2>
+            <p class="text-muted small mb-0">Record and track inventory inward stock purchases from wholesale weavers and garment suppliers</p>
+        </div>
+        {% if session.get('user_role') == 'ADMIN' %}
+        <div>
+            <a href="{{ url_for('purchases.new') }}" class="vl-btn-maroon">
+                <i class="bi bi-plus-lg"></i> <span>New Purchase (Inward Stock)</span>
+            </a>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Search & Filters -->
+    <form method="GET" action="{{ url_for('purchases.index') }}" class="row g-2 mb-4 p-3 bg-light rounded border">
+        <div class="col-lg-3 col-md-6">
+            <div class="input-group input-group-sm">
+                <span class="input-group-text bg-white border-end-0"><i class="bi bi-search text-muted"></i></span>
+                <input type="text" name="search" class="form-control border-start-0"
+                    placeholder="Search invoice or supplier..."
+                    value="{{ current_search }}">
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6">
+            <select name="supplier_id" class="form-select form-select-sm">
+                <option value="">All Suppliers</option>
+                {% for s in suppliers %}
+                    <option value="{{ s.supplier_id }}" {% if current_supplier_id|string == s.supplier_id|string %}selected{% endif %}>
+                        {{ s.supplier_name }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-lg-2 col-md-4">
+            <select name="status" class="form-select form-select-sm">
+                <option value="ALL" {% if current_status == 'ALL' %}selected{% endif %}>All Statuses</option>
+                <option value="PAID" {% if current_status == 'PAID' %}selected{% endif %}>Paid</option>
+                <option value="PARTIAL" {% if current_status == 'PARTIAL' %}selected{% endif %}>Partial</option>
+                <option value="PENDING" {% if current_status == 'PENDING' %}selected{% endif %}>Pending</option>
+            </select>
+        </div>
+        <div class="col-lg-2 col-md-4">
+            <div class="input-group input-group-sm">
+                <span class="input-group-text bg-white text-muted"><i class="bi bi-calendar"></i></span>
+                <input type="date" name="date_from" class="form-control" title="From Date" value="{{ current_date_from }}">
+            </div>
+        </div>
+        <div class="col-lg-2 col-md-4 d-flex gap-2">
+            <button type="submit" class="btn btn-dark btn-sm flex-grow-1">
+                <i class="bi bi-funnel-fill me-1"></i> Filter
+            </button>
+            {% if current_search or current_supplier_id or (current_status and current_status != 'ALL') or current_date_from or current_date_to %}
+            <a href="{{ url_for('purchases.index') }}" class="btn btn-outline-secondary btn-sm" title="Reset all filters">
+                <i class="bi bi-arrow-counterclockwise"></i>
+            </a>
+            {% endif %}
+        </div>
+    </form>
+
+    <!-- Purchases Table -->
+    <div class="table-responsive">
+        <table class="vl-table">
+            <thead>
+                <tr>
+                    <th>Invoice / Ref #</th>
+                    <th>Supplier</th>
+                    <th>Date</th>
+                    <th class="text-center">Items (Qty)</th>
+                    <th class="text-end">Subtotal</th>
+                    <th class="text-end">Discount</th>
+                    <th class="text-end">Tax</th>
+                    <th class="text-end">Grand Total</th>
+                    <th>Payment</th>
+                    <th class="text-end">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if purchases %}
+                    {% for p in purchases %}
+                    <tr>
+                        <td>
+                            <a href="{{ url_for('purchases.view', purchase_id=p.purchase_id) }}" class="fw-semibold text-danger text-decoration-none">
+                                <i class="bi bi-receipt me-1"></i>{{ p.invoice_number }}
+                            </a>
+                            <div class="text-muted" style="font-size: 0.75rem;">Recorded by: {{ p.created_by_name }}</div>
+                        </td>
+                        <td>
+                            <a href="{{ url_for('suppliers.view', supplier_id=p.supplier_id) }}" class="text-dark text-decoration-none fw-medium">
+                                {{ p.supplier_name }}
+                            </a>
+                            {% if p.supplier_phone %}
+                            <div class="text-muted small"><i class="bi bi-telephone text-muted me-1"></i>{{ p.supplier_phone }}</div>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="text-nowrap">{{ p.purchase_date.strftime('%d %b %Y') if p.purchase_date else '—' }}</span>
+                        </td>
+                        <td class="text-center">
+                            <span class="badge bg-light text-dark border">
+                                {{ p.item_count }} types ({{ p.total_quantity }} pcs)
+                            </span>
+                        </td>
+                        <td class="text-end text-muted">{{ p.subtotal | currency }}</td>
+                        <td class="text-end text-success">
+                            {% if p.discount and p.discount > 0 %}-{{ p.discount | currency }}{% else %}—{% endif %}
+                        </td>
+                        <td class="text-end text-muted">
+                            {% if p.tax and p.tax > 0 %}+{{ p.tax | currency }}{% else %}—{% endif %}
+                        </td>
+                        <td class="text-end fw-bold text-dark fs-6">{{ p.total | currency }}</td>
+                        <td>
+                            {% if p.payment_status == 'PAID' %}
+                                <span class="badge bg-success-subtle text-success border border-success-subtle"><i class="bi bi-check-circle me-1"></i>PAID</span>
+                            {% elif p.payment_status == 'PARTIAL' %}
+                                <span class="badge bg-warning-subtle text-warning border border-warning-subtle"><i class="bi bi-hourglass-split me-1"></i>PARTIAL</span>
+                            {% else %}
+                                <span class="badge bg-danger-subtle text-danger border border-danger-subtle"><i class="bi bi-clock me-1"></i>PENDING</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end">
+                            <a href="{{ url_for('purchases.view', purchase_id=p.purchase_id) }}" class="btn btn-outline-dark btn-sm" title="View Purchase Bill">
+                                <i class="bi bi-eye"></i> View Bill
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr>
+                        <td colspan="10" class="text-center py-5">
+                            <div class="text-muted">
+                                <i class="bi bi-bag-x fs-1 d-block mb-3 text-secondary"></i>
+                                <h5>No Purchases Found</h5>
+                                <p class="mb-3">No inward purchase invoices match your filter criteria.</p>
+                                {% if session.get('user_role') == 'ADMIN' %}
+                                <a href="{{ url_for('purchases.new') }}" class="vl-btn-maroon btn-sm">
+                                    <i class="bi bi-plus-lg me-1"></i> Record First Purchase
+                                </a>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

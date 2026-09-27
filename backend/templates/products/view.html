@@ -1,0 +1,208 @@
+{% extends "base.html" %}
+
+{% block title %}{{ product.product_name }} – Product Details – VL Silks{% endblock %}
+{% block header_title %}Garment Details & Variants{% endblock %}
+
+{% block content %}
+<!-- Top Breadcrumb & Actions -->
+<div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3 mb-4">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb mb-0">
+            <li class="breadcrumb-item"><a href="{{ url_for('products.index') }}" class="text-decoration-none text-danger">Products</a></li>
+            <li class="breadcrumb-item active">{{ product.product_name }}</li>
+        </ol>
+    </nav>
+    <div class="d-flex gap-2">
+        <a href="{{ url_for('products.index') }}" class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-arrow-left me-1"></i> Back to Catalog
+        </a>
+        {% if session.get('user_role') == 'ADMIN' %}
+        <a href="{{ url_for('products.edit', product_id=product.product_id) }}" class="vl-btn-maroon btn-sm">
+            <i class="bi bi-pencil-square me-1"></i> Edit Garment & Variants
+        </a>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Garment Overview & Stock Health Row -->
+<div class="row g-4 mb-4">
+    <!-- Garment Specs Card -->
+    <div class="col-lg-8">
+        <div class="vl-card h-100">
+            <div class="d-flex justify-content-between align-items-start mb-3">
+                <div>
+                    <span class="badge bg-secondary bg-opacity-10 text-dark border px-2 py-1 mb-2">
+                        <i class="bi bi-bookmark-fill me-1 text-warning"></i> {{ product.category_name }}
+                    </span>
+                    <h2 class="h4 brand-font mb-1 text-dark">{{ product.product_name }}</h2>
+                    <div class="text-muted small">Brand: <strong class="text-secondary">{{ product.brand }}</strong> &bull; Catalog ID: #{{ product.product_id }}</div>
+                </div>
+                <div>
+                    {% if product.status == 'ACTIVE' %}
+                        <span class="vl-badge vl-badge-active"><i class="bi bi-check-circle-fill me-1"></i> Active</span>
+                    {% else %}
+                        <span class="vl-badge bg-secondary text-white"><i class="bi bi-dash-circle-fill me-1"></i> Inactive</span>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="row g-3 py-3 border-top border-bottom my-2 bg-light rounded px-2">
+                <div class="col-sm-6">
+                    <span class="text-muted small d-block">Fabric / Material:</span>
+                    <span class="fw-semibold text-dark">{{ product.material or 'Standard Textile' }}</span>
+                </div>
+                <div class="col-sm-6">
+                    <span class="text-muted small d-block">Catalog Added On:</span>
+                    <span class="fw-semibold text-dark">{{ product.created_at.strftime('%d-%b-%Y') if product.created_at else '—' }}</span>
+                </div>
+            </div>
+
+            <div class="mt-3">
+                <span class="text-muted small d-block mb-1">Garment Description:</span>
+                <p class="text-dark mb-0 small" style="line-height: 1.6;">
+                    {{ product.description or 'No additional weaving or care specifications provided.' }}
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Stock Health Summary Cards -->
+    <div class="col-lg-4">
+        <div class="vl-card h-100">
+            <h3 class="h6 brand-font text-danger mb-3"><i class="bi bi-shield-check me-2"></i> Inventory Status</h3>
+            
+            <div class="mb-3 p-3 bg-light rounded border text-center">
+                <span class="text-muted small text-uppercase tracking-wider fw-semibold d-block mb-1">Total Available Stock</span>
+                <span class="display-6 fw-bold text-dark">{{ total_stock }}</span>
+                <span class="text-muted small d-block">units across {{ variants|length }} variant(s)</span>
+            </div>
+
+            <div class="d-flex flex-column gap-2">
+                <div class="d-flex justify-content-between align-items-center p-2 rounded bg-success bg-opacity-10 border border-success border-opacity-25">
+                    <span class="small fw-semibold text-success"><i class="bi bi-check-circle-fill me-1"></i> In Stock Variants</span>
+                    <span class="badge bg-success">{{ in_stock_count }}</span>
+                </div>
+                <div class="d-flex justify-content-between align-items-center p-2 rounded bg-warning bg-opacity-10 border border-warning border-opacity-25">
+                    <span class="small fw-semibold text-warning-emphasis"><i class="bi bi-exclamation-circle-fill me-1 text-warning"></i> Low Stock Variants</span>
+                    <span class="badge bg-warning text-dark">{{ low_stock_count }}</span>
+                </div>
+                <div class="d-flex justify-content-between align-items-center p-2 rounded bg-danger bg-opacity-10 border border-danger border-opacity-25">
+                    <span class="small fw-semibold text-danger"><i class="bi bi-x-circle-fill me-1"></i> Out of Stock</span>
+                    <span class="badge bg-danger">{{ out_stock_count }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Product Variants Table -->
+<div class="vl-card">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+            <h3 class="h5 brand-font mb-1 text-danger"><i class="bi bi-diagram-3-fill me-2"></i> Size & Color Variants Breakdown</h3>
+            <p class="text-muted small mb-0">List of all size/color SKUs belonging to this garment with independent stock tracking</p>
+        </div>
+        {% if session.get('user_role') == 'ADMIN' %}
+        <a href="{{ url_for('products.edit', product_id=product.product_id) }}#addVariantSection" class="vl-btn-gold btn-sm">
+            <i class="bi bi-plus-lg"></i> Add Variant
+        </a>
+        {% endif %}
+    </div>
+
+    <div class="table-responsive">
+        <table class="vl-table">
+            <thead>
+                <tr>
+                    <th>SKU / Code</th>
+                    <th>Size</th>
+                    <th>Color</th>
+                    <th>Purchase Price</th>
+                    <th>Selling Price</th>
+                    <th class="text-center">Current Stock</th>
+                    <th class="text-center">Min Stock</th>
+                    <th>Stock Status</th>
+                    <th>Barcode</th>
+                    <th>Status</th>
+                    {% if session.get('user_role') == 'ADMIN' %}
+                    <th class="text-end">Actions</th>
+                    {% endif %}
+                </tr>
+            </thead>
+            <tbody>
+                {% if variants %}
+                    {% for v in variants %}
+                    <tr>
+                        <td class="fw-bold text-dark font-monospace">{{ v.sku }}</td>
+                        <td>
+                            <span class="badge bg-light text-dark border px-2 py-1">{{ v.size }}</span>
+                        </td>
+                        <td>
+                            <div class="d-flex align-items-center gap-2">
+                                <span class="d-inline-block rounded-circle border" style="width: 12px; height: 12px; background-color: var(--vl-secondary);"></span>
+                                <span>{{ v.color }}</span>
+                            </div>
+                        </td>
+                        <td class="text-muted">₹{{ "{:,.2f}".format(v.purchase_price) }}</td>
+                        <td class="fw-bold text-dark">₹{{ "{:,.2f}".format(v.selling_price) }}</td>
+                        <td class="text-center">
+                            <span class="fw-bold fs-6 {% if v.stock_quantity == 0 %}text-danger{% elif v.stock_quantity <= v.minimum_stock %}text-warning-emphasis{% else %}text-success{% endif %}">
+                                {{ v.stock_quantity }}
+                            </span>
+                        </td>
+                        <td class="text-center text-muted">{{ v.minimum_stock }}</td>
+                        <td>
+                            {% if v.stock_status == 'IN_STOCK' %}
+                                <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 px-2 py-1">
+                                    <i class="bi bi-check2 me-1"></i> In Stock
+                                </span>
+                            {% elif v.stock_status == 'LOW_STOCK' %}
+                                <span class="badge bg-warning bg-opacity-25 text-dark border border-warning px-2 py-1">
+                                    <i class="bi bi-exclamation-triangle-fill text-warning me-1"></i> Low Stock
+                                </span>
+                            {% else %}
+                                <span class="badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25 px-2 py-1">
+                                    <i class="bi bi-x-circle-fill me-1"></i> Out of Stock
+                                </span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if v.barcode %}
+                                <span class="small font-monospace text-muted">{{ v.barcode }}</span>
+                            {% else %}
+                                <span class="text-muted small">—</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if v.status == 'ACTIVE' %}
+                                <span class="vl-badge vl-badge-active">Active</span>
+                            {% else %}
+                                <span class="vl-badge bg-secondary text-white">Inactive</span>
+                            {% endif %}
+                        </td>
+                        {% if session.get('user_role') == 'ADMIN' %}
+                        <td class="text-end">
+                            <form action="{{ url_for('products.toggle_variant_status', variant_id=v.variant_id) }}" method="POST" class="d-inline"
+                                  data-vl-confirm
+                                  data-vl-title="Change Variant Status"
+                                  data-vl-message="Are you sure you want to {{ 'deactivate' if v.status == 'ACTIVE' else 'activate' }} SKU {{ v.sku }}?"
+                                  data-vl-icon="{{ '⚠️' if v.status == 'ACTIVE' else '✅' }}"
+                                  data-vl-confirm-text="{{ 'Deactivate' if v.status == 'ACTIVE' else 'Activate' }}"
+                                  data-vl-confirm-class="{{ 'vl-confirm-danger' if v.status == 'ACTIVE' else 'vl-confirm-success' }}">
+                                <button type="submit" class="btn btn-outline-{{ 'danger' if v.status == 'ACTIVE' else 'success' }} btn-sm" title="{{ 'Deactivate' if v.status == 'ACTIVE' else 'Activate' }} variant">
+                                    <i class="bi bi-power"></i>
+                                </button>
+                            </form>
+                        </td>
+                        {% endif %}
+                    </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr>
+                        <td colspan="11" class="text-center py-4 text-muted">No variants found for this product.</td>
+                    </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
