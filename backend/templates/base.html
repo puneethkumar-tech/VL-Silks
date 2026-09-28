@@ -24,14 +24,18 @@
     {% block extra_css %}{% endblock %}
 </head>
 <body>
+    {% if session.get('user_id') %}
     <!-- Sidebar Navigation -->
     <aside class="vl-sidebar" id="vlSidebar">
-        <div class="vl-sidebar-brand">
+        <div class="vl-sidebar-brand position-relative">
             <a href="{{ url_for('dashboard.index') }}" class="text-decoration-none">
                 <img src="{{ url_for('static', filename='images/vl-silks-logo-transparent.png') }}" alt="VL Silks Logo" class="img-fluid" onerror="this.src='{{ url_for('static', filename='images/vl-silks-monogram.png') }}'">
                 <h4 class="mb-0">VL SILKS</h4>
                 <span>TRADITION MEETS FASHION</span>
             </a>
+            <button class="btn btn-sm btn-link d-lg-none vl-sidebar-close" id="sidebarCloseBtn" type="button" aria-label="Close navigation menu">
+                <i class="bi bi-x-lg"></i>
+            </button>
         </div>
 
         <ul class="vl-nav-links">
@@ -117,44 +121,56 @@
                     {{ session.get('user_name', 'VL')[0] | upper }}
                 </div>
                 <div>
-                    <div class="fw-semibold small text-light">{{ session.get('user_name', 'Admin') }}</div>
+                    <div class="fw-semibold small text-light text-truncate" style="max-width: 130px;">{{ session.get('user_name', 'Admin') }}</div>
                     <div class="text-warning" style="font-size: 0.72rem;">{{ session.get('user_role', 'Administrator') }}</div>
                 </div>
             </div>
-            <a href="{{ url_for('auth.logout') }}" class="text-warning text-decoration-none" title="Logout">
+            <a href="{{ url_for('auth.logout') }}" class="text-warning text-decoration-none p-1" title="Logout" aria-label="Logout">
                 <i class="bi bi-box-arrow-right fs-5"></i>
             </a>
         </div>
     </aside>
 
+    <!-- Mobile Sidebar Backdrop Overlay -->
+    <div class="vl-sidebar-backdrop" id="vlSidebarBackdrop" aria-hidden="true"></div>
+    {% endif %}
+
     <!-- Main Content Area -->
-    <div class="vl-main-wrapper">
+    <div class="vl-main-wrapper {% if not session.get('user_id') %}vl-no-sidebar{% endif %}">
         <!-- Top Navbar -->
         <header class="vl-topbar">
-            <div class="d-flex align-items-center gap-3">
-                <button class="btn btn-outline-secondary d-lg-none" id="sidebarToggle" type="button">
+            <div class="d-flex align-items-center gap-2 vl-topbar-left">
+                {% if session.get('user_id') %}
+                <button class="btn btn-outline-secondary d-lg-none" id="sidebarToggle" type="button" aria-label="Toggle navigation menu">
                     <i class="bi bi-list fs-5"></i>
                 </button>
+                {% endif %}
                 <div class="vl-topbar-title">
-                    <h1 class="h4 mb-0">{% block header_title %}VL Silks Management{% endblock %}</h1>
+                    <h1 class="h4 mb-0 text-truncate">{% block header_title %}VL Silks Management{% endblock %}</h1>
                 </div>
             </div>
 
             <div class="vl-topbar-actions">
-                <span class="badge bg-light text-dark border px-3 py-2 d-none d-md-inline-block">
+                <span class="badge bg-light text-dark border px-3 py-2 d-none d-xl-inline-block">
                     <i class="bi bi-calendar3 me-1 text-danger"></i> <span id="currentDateDisplay"></span>
                 </span>
-                <a href="{{ url_for('sales.new') }}" class="vl-btn-maroon">
-                    <i class="bi bi-plus-circle"></i> <span>New Sale (POS)</span>
+                {% if session.get('user_id') %}
+                <a href="{{ url_for('sales.new') }}" class="vl-btn-maroon" title="New Sale (POS)">
+                    <i class="bi bi-plus-circle"></i> <span class="d-none d-sm-inline">New Sale (POS)</span><span class="d-inline d-sm-none">POS</span>
                 </a>
-                <a href="#" class="vl-btn-gold">
-                    <i class="bi bi-box-seam"></i> <span>Add Stock</span>
+                <a href="{{ url_for('inventory.index') }}" class="vl-btn-gold" title="Inventory & Stock">
+                    <i class="bi bi-boxes"></i> <span class="d-none d-sm-inline">Stock</span>
                 </a>
+                {% else %}
+                <a href="{{ url_for('auth.login') }}" class="vl-btn-maroon" title="Staff / Admin Login">
+                    <i class="bi bi-box-arrow-in-right"></i> <span>Login</span>
+                </a>
+                {% endif %}
             </div>
         </header>
 
         <!-- Flash Messages -->
-        <div class="container-fluid px-4 pt-3">
+        <div class="container-fluid px-3 px-md-4 pt-3">
             {% with messages = get_flashed_messages(with_categories=true) %}
                 {% if messages %}
                     {% for category, message in messages %}
@@ -173,7 +189,7 @@
         </main>
 
         <!-- Footer -->
-        <footer class="vl-footer py-3 px-4 bg-white border-top text-center text-muted small" id="vlFooter">
+        <footer class="vl-footer py-3 px-3 px-md-4 bg-white border-top text-center text-muted small" id="vlFooter">
             <div><strong>VL Silks</strong> – Tradition Meets Fashion | Garment Shop Inventory, Sales & Credit Management System</div>
             <div class="text-secondary mt-1">College DBMS Project &bull; Built with Python, Flask & MySQL</div>
         </footer>
@@ -209,14 +225,77 @@
             dateEl.innerText = today.toLocaleDateString('en-IN', options);
         }
 
-        // Sidebar mobile toggle
-        const toggleBtn = document.getElementById('sidebarToggle');
-        const sidebar = document.getElementById('vlSidebar');
-        if (toggleBtn && sidebar) {
-            toggleBtn.addEventListener('click', () => {
-                sidebar.classList.toggle('show');
+        // Mobile Off-Canvas Sidebar Controller
+        (function() {
+            const toggleBtn = document.getElementById('sidebarToggle');
+            const closeBtn = document.getElementById('sidebarCloseBtn');
+            const sidebar = document.getElementById('vlSidebar');
+            const backdrop = document.getElementById('vlSidebarBackdrop');
+
+            function openSidebar() {
+                if (sidebar) sidebar.classList.add('show');
+                if (backdrop) {
+                    backdrop.classList.add('active');
+                    backdrop.removeAttribute('aria-hidden');
+                }
+                document.body.classList.add('vl-drawer-open');
+            }
+
+            function closeSidebar() {
+                if (sidebar) sidebar.classList.remove('show');
+                if (backdrop) {
+                    backdrop.classList.remove('active');
+                    backdrop.setAttribute('aria-hidden', 'true');
+                }
+                document.body.classList.remove('vl-drawer-open');
+            }
+
+            if (toggleBtn) {
+                toggleBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    if (sidebar && sidebar.classList.contains('show')) {
+                        closeSidebar();
+                    } else {
+                        openSidebar();
+                    }
+                });
+            }
+
+            if (closeBtn) {
+                closeBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    closeSidebar();
+                });
+            }
+
+            if (backdrop) {
+                backdrop.addEventListener('click', closeSidebar);
+            }
+
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape' && sidebar && sidebar.classList.contains('show')) {
+                    closeSidebar();
+                }
             });
-        }
+
+            // Auto-close on mobile link navigation
+            if (sidebar) {
+                sidebar.querySelectorAll('.vl-nav-link').forEach(link => {
+                    link.addEventListener('click', () => {
+                        if (window.innerWidth <= 992) {
+                            closeSidebar();
+                        }
+                    });
+                });
+            }
+
+            // Clean up body lock when window resized to desktop
+            window.addEventListener('resize', () => {
+                if (window.innerWidth > 992) {
+                    closeSidebar();
+                }
+            });
+        })();
     </script>
 
     <style>

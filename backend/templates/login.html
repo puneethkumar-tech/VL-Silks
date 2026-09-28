@@ -22,7 +22,7 @@
 </head>
 <body>
     <div class="vl-login-wrapper">
-        <!-- Brand Presentation Pane -->
+        <!-- Brand Presentation Pane (Desktop only) -->
         <div class="vl-login-brand-pane">
             <div style="max-width: 480px; z-index: 2;">
                 <img src="{{ url_for('static', filename='images/vl-silks-logo-transparent.png') }}" alt="VL Silks Logo" style="max-height: 120px; margin-bottom: 24px;" onerror="this.src='{{ url_for('static', filename='images/vl-silks-monogram.png') }}'">
@@ -53,40 +53,42 @@
         <!-- Login Form Pane -->
         <div class="vl-login-form-pane">
             <div class="vl-login-card">
-                <div class="text-center mb-4">
-                    <img src="{{ url_for('static', filename='images/vl-silks-monogram.png') }}" alt="Monogram" style="height: 48px;" class="mb-2">
-                    <h2 class="h4 brand-font text-dark mb-1">Staff & Admin Login</h2>
-                    <p class="text-muted small">Enter your shop credentials to access the portal</p>
+                <!-- Header -->
+                <div class="vl-login-header text-center">
+                    <img src="{{ url_for('static', filename='images/vl-silks-monogram.png') }}" alt="VL Silks Monogram" class="vl-login-logo">
+                    <h2 class="vl-login-title brand-font">Staff & Admin Login</h2>
+                    <p class="vl-login-subtitle">Enter your shop credentials to access the portal</p>
                 </div>
 
                 <!-- Flash Messages -->
                 {% with messages = get_flashed_messages(with_categories=true) %}
                     {% if messages %}
                         {% for category, message in messages %}
-                            <div class="alert alert-{{ category if category != 'error' else 'danger' }} alert-dismissible fade show small" role="alert">
+                            <div class="alert alert-{{ category if category != 'error' else 'danger' }} alert-dismissible fade show small py-2 px-3 mb-3" role="alert">
                                 {{ message }}
-                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                                <button type="button" class="btn-close py-2" data-bs-dismiss="alert" aria-label="Close"></button>
                             </div>
                         {% endfor %}
                     {% endif %}
                 {% endwith %}
 
-                <form action="{{ url_for('auth.login') }}" method="POST">
+                <!-- Login Form -->
+                <form action="{{ url_for('auth.login') }}" method="POST" id="loginForm">
                     <div class="vl-form-group">
                         <label class="vl-form-label" for="email">
                             <i class="bi bi-envelope me-1 text-danger"></i> Email / Username
                         </label>
-                        <input type="email" id="email" name="email" class="vl-form-input" placeholder="admin@vlsilks.com" required value="{{ request.form.get('email', '') }}">
+                        <input type="email" id="email" name="email" class="vl-form-input" placeholder="admin@vlsilks.com" required value="{{ request.form.get('email', '') }}" autocomplete="username">
                     </div>
 
                     <div class="vl-form-group">
                         <label class="vl-form-label" for="password">
                             <i class="bi bi-lock me-1 text-danger"></i> Password
                         </label>
-                        <input type="password" id="password" name="password" class="vl-form-input" placeholder="••••••••" required>
+                        <input type="password" id="password" name="password" class="vl-form-input" placeholder="••••••••" required autocomplete="current-password">
                     </div>
 
-                    <div class="d-flex justify-content-between align-items-center mb-4">
+                    <div class="d-flex justify-content-between align-items-center vl-login-remember">
                         <div class="form-check">
                             <input class="form-check-input" type="checkbox" id="remember" name="remember">
                             <label class="form-check-label small text-muted" for="remember">
@@ -95,16 +97,74 @@
                         </div>
                     </div>
 
-                    <button type="submit" class="vl-btn-maroon w-100 justify-content-center py-2 fs-6">
-                        <i class="bi bi-box-arrow-in-right"></i> Sign In to Dashboard
+                    <button type="submit" id="btnSubmitLogin" class="vl-btn-maroon w-100 justify-content-center vl-login-submit-btn">
+                        <i class="bi bi-box-arrow-in-right me-1"></i> Sign In to Dashboard
                     </button>
                 </form>
 
-                <!-- Demo Credentials Box -->
-                <div class="mt-4 pt-3 border-top text-start bg-light p-3 rounded border">
-                    <div class="fw-bold small text-dark mb-1"><i class="bi bi-key-fill text-warning me-1"></i> Demo Credentials:</div>
-                    <div class="small text-muted mb-1"><strong>Admin:</strong> <code>admin@vlsilks.com</code> / <code>Admin@123</code></div>
-                    <div class="small text-muted"><strong>Staff:</strong> <code>staff@vlsilks.com</code> / <code>Staff@123</code></div>
+                <!-- Compact Interactive Demo Helper -->
+                <div class="vl-demo-box" id="demoCredentialsSection" aria-label="Demo credentials helper">
+                    <div class="vl-demo-header">
+                        <span class="vl-demo-title">
+                            <i class="bi bi-key-fill text-warning"></i> Demo Access
+                        </span>
+                        <span class="badge bg-warning bg-opacity-25 text-dark border border-warning border-opacity-50" style="font-size: 0.65rem; font-weight: 600;">1-Tap Fill</span>
+                    </div>
+
+                    <!-- 1-Tap Fill Actions -->
+                    <div class="vl-demo-actions">
+                        <button type="button" class="vl-demo-btn-fill" id="btnAdminDemo" data-email="admin@vlsilks.com" data-password="Admin@123" aria-label="Use Admin Demo credentials" title="Fill Admin login info">
+                            <i class="bi bi-shield-lock-fill text-danger"></i> Use Admin Demo
+                        </button>
+                        <button type="button" class="vl-demo-btn-fill" id="btnStaffDemo" data-email="staff@vlsilks.com" data-password="Staff@123" aria-label="Use Staff Demo credentials" title="Fill Staff login info">
+                            <i class="bi bi-person-badge-fill text-warning"></i> Use Staff Demo
+                        </button>
+                    </div>
+
+                    <!-- Copyable Credentials -->
+                    <div class="vl-demo-cards">
+                        <!-- Admin -->
+                        <div class="vl-demo-card">
+                            <div class="vl-demo-role">
+                                <span class="badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25">Admin</span>
+                            </div>
+                            <div class="vl-demo-creds">
+                                <div class="vl-demo-item">
+                                    <span class="vl-demo-val" id="adminEmailVal">admin@vlsilks.com</span>
+                                    <button type="button" class="vl-copy-btn" id="btnCopyAdminEmail" data-copy="admin@vlsilks.com" aria-label="Copy admin email" title="Copy email">
+                                        <i class="bi bi-clipboard"></i>
+                                    </button>
+                                </div>
+                                <div class="vl-demo-item">
+                                    <span class="vl-demo-val" id="adminPassVal">Admin@123</span>
+                                    <button type="button" class="vl-copy-btn" id="btnCopyAdminPass" data-copy="Admin@123" aria-label="Copy admin password" title="Copy password">
+                                        <i class="bi bi-clipboard"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Staff -->
+                        <div class="vl-demo-card">
+                            <div class="vl-demo-role">
+                                <span class="badge bg-warning bg-opacity-10 text-dark border border-warning border-opacity-50">Staff</span>
+                            </div>
+                            <div class="vl-demo-creds">
+                                <div class="vl-demo-item">
+                                    <span class="vl-demo-val" id="staffEmailVal">staff@vlsilks.com</span>
+                                    <button type="button" class="vl-copy-btn" id="btnCopyStaffEmail" data-copy="staff@vlsilks.com" aria-label="Copy staff email" title="Copy email">
+                                        <i class="bi bi-clipboard"></i>
+                                    </button>
+                                </div>
+                                <div class="vl-demo-item">
+                                    <span class="vl-demo-val" id="staffPassVal">Staff@123</span>
+                                    <button type="button" class="vl-copy-btn" id="btnCopyStaffPass" data-copy="Staff@123" aria-label="Copy staff password" title="Copy password">
+                                        <i class="bi bi-clipboard"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -112,5 +172,90 @@
 
     <!-- Bootstrap 5 JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- Interactive Demo Credentials JS -->
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // 1. One-Tap Demo Fill
+        function setupDemoFill(btnId, email, password) {
+            var btn = document.getElementById(btnId);
+            if (!btn) return;
+            btn.addEventListener('click', function(e) {
+                e.preventDefault();
+                var emailInput = document.getElementById('email');
+                var passInput = document.getElementById('password');
+                if (emailInput && passInput) {
+                    emailInput.value = email;
+                    passInput.value = password;
+
+                    emailInput.dispatchEvent(new Event('input', { bubbles: true }));
+                    passInput.dispatchEvent(new Event('input', { bubbles: true }));
+
+                    emailInput.classList.remove('vl-input-highlight');
+                    passInput.classList.remove('vl-input-highlight');
+                    void emailInput.offsetWidth;
+                    emailInput.classList.add('vl-input-highlight');
+                    passInput.classList.add('vl-input-highlight');
+
+                    var origHtml = btn.innerHTML;
+                    btn.innerHTML = '<i class="bi bi-check-circle-fill text-success"></i> Filled!';
+                    setTimeout(function() {
+                        btn.innerHTML = origHtml;
+                    }, 1400);
+                }
+            });
+        }
+
+        setupDemoFill('btnAdminDemo', 'admin@vlsilks.com', 'Admin@123');
+        setupDemoFill('btnStaffDemo', 'staff@vlsilks.com', 'Staff@123');
+
+        // 2. Copy Credentials to Clipboard
+        var copyButtons = document.querySelectorAll('.vl-copy-btn');
+        copyButtons.forEach(function(btn) {
+            btn.addEventListener('click', function(e) {
+                e.preventDefault();
+                var textToCopy = btn.getAttribute('data-copy');
+                if (!textToCopy) return;
+
+                function showCopied() {
+                    btn.classList.add('copied');
+                    btn.innerHTML = '<i class="bi bi-check2"></i>';
+                    btn.setAttribute('aria-label', 'Copied');
+                    setTimeout(function() {
+                        btn.classList.remove('copied');
+                        btn.innerHTML = '<i class="bi bi-clipboard"></i>';
+                        btn.setAttribute('aria-label', btn.getAttribute('title') || 'Copy');
+                    }, 1500);
+                }
+
+                if (navigator.clipboard && window.isSecureContext) {
+                    navigator.clipboard.writeText(textToCopy).then(showCopied).catch(function() {
+                        fallbackCopy(textToCopy, showCopied);
+                    });
+                } else {
+                    fallbackCopy(textToCopy, showCopied);
+                }
+            });
+        });
+
+        function fallbackCopy(text, callback) {
+            var textArea = document.createElement('textarea');
+            textArea.value = text;
+            textArea.style.position = 'fixed';
+            textArea.style.left = '-999999px';
+            textArea.style.top = '-999999px';
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+            try {
+                document.execCommand('copy');
+                if (callback) callback();
+            } catch (err) {
+                console.error('Fallback copy error', err);
+            }
+            document.body.removeChild(textArea);
+        }
+    });
+    </script>
 </body>
 </html>

@@ -390,4 +390,93 @@ test.describe('VL Silks Automated End-to-End QA Suite', () => {
     expect(scrollWidth).toBeLessThanOrEqual(clientWidth + 5);
   });
 
+  // 14. CUSTOM 404 NOT FOUND PAGE & STATUS
+  test('14. Custom Branded 404 Error Page & HTTP Status', async ({ page }) => {
+    // 1. Unauthenticated request to nonexistent page
+    const resUnauth = await page.goto('/this-page-does-not-exist');
+    expect(resUnauth.status()).toBe(404);
+    await expect(page.locator('body')).toContainText('404');
+    await expect(page.locator('body')).toContainText('Page Not Found');
+    await expect(page.locator('body')).toContainText("doesn't exist");
+    await expect(page.locator('#btnGoToLogin')).toBeVisible();
+    await expect(page.locator('#btnGoBack')).toBeVisible();
+    await page.screenshot({ path: path.join(SCREENSHOT_DIR, '14_404_unauthenticated.png') });
+
+    // 2. Nested nonexistent URL
+    const resNested = await page.goto('/abc/random-test-url');
+    expect(resNested.status()).toBe(404);
+
+    // 3. Authenticated request to nonexistent page
+    await adminLogin(page);
+    const resAuth = await page.goto('/products/nonexistent-item-page-xyz');
+    expect(resAuth.status()).toBe(404);
+    await expect(page.locator('body')).toContainText('404');
+    await expect(page.locator('#btnBackToDashboard')).toBeVisible();
+    await page.screenshot({ path: path.join(SCREENSHOT_DIR, '14_404_authenticated.png') });
+
+    // Test Back to Dashboard button works
+    await page.click('#btnBackToDashboard');
+    await page.waitForURL('**/dashboard');
+    expect(page.url()).toContain('/dashboard');
+  });
+
+  // 15. MOBILE OFF-CANVAS DRAWER & MULTI-VIEWPORT AUDIT
+  test('15. Mobile Off-Canvas Drawer, Backdrop & Multi-Viewport Flow', async ({ page }) => {
+    await adminLogin(page);
+
+    const mobileViewports = [
+      { name: '360x800', width: 360, height: 800 },
+      { name: '375x812', width: 375, height: 812 },
+      { name: '390x844', width: 390, height: 844 },
+      { name: '412x915', width: 412, height: 915 },
+      { name: '768x1024', width: 768, height: 1024 }
+    ];
+
+    for (const vp of mobileViewports) {
+      await page.setViewportSize({ width: vp.width, height: vp.height });
+      await page.goto('/dashboard');
+      await page.waitForLoadState('networkidle');
+
+      // 1. Verify hamburger button is visible on mobile
+      const toggleBtn = page.locator('#sidebarToggle');
+      await expect(toggleBtn).toBeVisible();
+
+      // 2. Open drawer
+      await toggleBtn.click();
+      const sidebar = page.locator('#vlSidebar');
+      const backdrop = page.locator('#vlSidebarBackdrop');
+      await expect(sidebar).toHaveClass(/show/);
+      await expect(backdrop).toHaveClass(/active/);
+      const isBodyLocked = await page.evaluate(() => document.body.classList.contains('vl-drawer-open'));
+      expect(isBodyLocked).toBeTruthy();
+
+      // 3. Close drawer via backdrop click
+      await backdrop.click({ position: { x: vp.width - 20, y: 100 } });
+      await expect(sidebar).not.toHaveClass(/show/);
+      const isBodyUnlocked = await page.evaluate(() => !document.body.classList.contains('vl-drawer-open'));
+      expect(isBodyUnlocked).toBeTruthy();
+
+      // 4. Open drawer and close via close button
+      await toggleBtn.click();
+      await expect(sidebar).toHaveClass(/show/);
+      const closeBtn = page.locator('#sidebarCloseBtn');
+      if (await closeBtn.isVisible()) {
+        await closeBtn.click();
+        await expect(sidebar).not.toHaveClass(/show/);
+      }
+
+      // 5. Verify no horizontal overflow on page
+      const scrollWidth = await page.evaluate(() => document.documentElement.scrollWidth);
+      const clientWidth = await page.evaluate(() => document.documentElement.clientWidth);
+      expect(scrollWidth).toBeLessThanOrEqual(clientWidth + 2);
+
+      // 6. Test POS on this viewport
+      await page.goto('/sales/new');
+      await page.waitForLoadState('networkidle');
+      const posScrollWidth = await page.evaluate(() => document.documentElement.scrollWidth);
+      const posClientWidth = await page.evaluate(() => document.documentElement.clientWidth);
+      expect(posScrollWidth).toBeLessThanOrEqual(posClientWidth + 2);
+    }
+  });
+
 });
